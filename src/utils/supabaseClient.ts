@@ -237,19 +237,17 @@ export const db = {
     return { farm: newFarm, profiles: newProfiles };
   },
 
-  updateProfiles: async (ownerName: string, managerName: string, managerPin?: string): Promise<Profile[]> => {
+  updateProfiles: async (ownerName: string, ownerPin: string, managerName: string, managerPin: string): Promise<Profile[]> => {
     if (isLiveDb && supabase) {
       const list = await db.getProfiles();
       const owner = list.find(p => p.role === 'owner');
       const manager = list.find(p => p.role === 'manager');
       
       if (owner) {
-        await supabase.from('profiles').update({ full_name: ownerName }).eq('id', owner.id);
+        await supabase.from('profiles').update({ full_name: ownerName, security_pin: ownerPin }).eq('id', owner.id);
       }
       if (manager) {
-        const updateData: any = { full_name: managerName };
-        if (managerPin) updateData.security_pin = managerPin;
-        await supabase.from('profiles').update(updateData).eq('id', manager.id);
+        await supabase.from('profiles').update({ full_name: managerName, security_pin: managerPin }).eq('id', manager.id);
       }
       return db.getProfiles();
     }
@@ -257,10 +255,13 @@ export const db = {
     const list: Profile[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.PROFILES) || '[]');
     const owner = list.find(p => p.role === 'owner');
     const manager = list.find(p => p.role === 'manager');
-    if (owner) owner.fullName = ownerName;
+    if (owner) {
+      owner.fullName = ownerName;
+      owner.securityPin = ownerPin;
+    }
     if (manager) {
       manager.fullName = managerName;
-      if (managerPin) manager.securityPin = managerPin;
+      manager.securityPin = managerPin;
     }
     localStorage.setItem(STORAGE_KEYS.PROFILES, JSON.stringify(list));
     

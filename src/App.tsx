@@ -1161,12 +1161,13 @@ function App() {
                     const nameInput = (e.currentTarget.elements.namedItem('farm-name-edit') as HTMLInputElement).value;
                     const locInput = (e.currentTarget.elements.namedItem('farm-loc-edit') as HTMLInputElement).value;
                     const oName = (e.currentTarget.elements.namedItem('owner-name-edit') as HTMLInputElement).value;
+                    const oPin = (e.currentTarget.elements.namedItem('owner-pin-edit') as HTMLInputElement).value;
                     const mName = (e.currentTarget.elements.namedItem('manager-name-edit') as HTMLInputElement).value;
                     const mPin = (e.currentTarget.elements.namedItem('manager-pin-edit') as HTMLInputElement).value;
                     
                     if (nameInput) {
                       db.updateFarm(nameInput, locInput);
-                      db.updateProfiles(oName, mName, mPin);
+                      db.updateProfiles(oName, oPin, mName, mPin);
                       refreshData();
                       alert('Farm Profile & Staff Credentials updated successfully!');
                     }
@@ -1212,6 +1213,19 @@ function App() {
                           defaultValue={profiles.find(p => p.role === 'owner')?.fullName || ''}
                           required
                           style={{ padding: '0.4rem 0.6rem', fontSize: '0.85rem' }}
+                        />
+                      </div>
+                      
+                      <div className="form-group" style={{ textAlign: 'left', marginTop: '0.5rem' }}>
+                        <label style={{ fontSize: '0.75rem' }}>Owner Login PIN</label>
+                        <input 
+                          id="owner-pin-edit"
+                          type="text" 
+                          maxLength={4}
+                          className="form-control" 
+                          defaultValue={profiles.find(p => p.role === 'owner')?.securityPin || '0000'}
+                          required
+                          style={{ padding: '0.4rem 0.6rem', fontSize: '0.85rem', letterSpacing: '0.1em' }}
                         />
                       </div>
                       
