@@ -91,6 +91,9 @@ function App() {
   // Search/Filters
   const [cattleSearch, setCattleSearch] = useState('');
   const [cattleFilterStatus, setCattleFilterStatus] = useState<string>('all');
+  
+  // Analytics
+  const [selectedCowProfileId, setSelectedCowProfileId] = useState<string | null>(null);
   const [txFilterCategory, setTxFilterCategory] = useState<string>('all');
 
   // Modals visibility
@@ -1553,7 +1556,7 @@ function App() {
             ) : (
               <div className="cattle-grid">
                 {filteredCattle.map(cow => (
-                  <div key={cow.id} className="cattle-card">
+                  <div key={cow.id} className="cattle-card" onClick={() => setSelectedCowProfileId(cow.id)} style={{ cursor: 'pointer' }}>
                     <div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                         <div className="cattle-avatar">🐄</div>
@@ -1600,7 +1603,8 @@ function App() {
                       <button 
                         className="btn btn-secondary" 
                         style={{ flex: 1, padding: '0.4rem', fontSize: '0.8rem' }}
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation();
                           setCattleForm({
                             id: cow.id,
                             tagNumber: cow.tagNumber,
@@ -1621,7 +1625,8 @@ function App() {
                         <button 
                           className="btn btn-danger" 
                           style={{ padding: '0.4rem 0.6rem' }}
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
                             if (confirm('Delete cow profile permanently?')) {
                               db.deleteCattle(cow.id);
                               refreshData();
@@ -2432,6 +2437,161 @@ function App() {
           </div>
         </div>
       )}
+      {/* ========================================================
+          MODAL: COW ANALYTICS PROFILE
+          ======================================================== */}
+      {selectedCowProfileId && (() => {
+        const selectedCow = cattle.find(c => c.id === selectedCowProfileId);
+        if (!selectedCow) return null;
+
+        const cowLogs = milkLogs.filter(l => l.cattleId === selectedCowProfileId);
+        const cowHealth = healthLogs.filter(h => h.cattleId === selectedCowProfileId);
+        
+        // Income
+        let totalIncome = 0;
+        cowLogs.forEach(log => {
+           const rate = (log.fatPercentage && log.snfPercentage) 
+             ? calculateMilkRate(log.fatPercentage, log.snfPercentage) 
+             : 48; 
+           totalIncome += (log.quantityLiters * rate);
+        });
+
+        // Expenses
+        const vetCost = cowHealth.reduce((sum, h) => sum + h.cost, 0);
+        
+        // Pro-rated Feed Cost
+        const feedTxs = transactions.filter(t => t.category === 'Feed Purchase' && t.type === 'expense');
+        const totalFarmFeedCost = feedTxs.reduce((sum, t) => sum + t.amount, 0);
+        const activeCattleCount = cattle.length || 1; // Divide by total herd size
+        const proratedFeedCost = Math.round(totalFarmFeedCost / activeCattleCount);
+
+        const netMargin = Math.round(totalIncome) - (vetCost + proratedFeedCost);
+
+        // Chart Data (Last 7 days of yields for this cow)
+        const recentDates = Array.from(new Set(cowLogs.map(l => l.logDate)))
+          .sort((a, b) => new Date(a).getTime() - new Date(b).getTime())
+          .slice(-7);
+
+        return (
+          <div className="modal-overlay" onClick={() => setSelectedCowProfileId(null)}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '700px' }}>
+              <button className="btn btn-secondary" style={{ position: 'absolute', right: '1.5rem', top: '1.5rem', padding: '0.25rem' }} onClick={() => setSelectedCowProfileId(null)}>
+                <X size={18} />
+              </button>
+              
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '1rem' }}>
+                <div>
+                  <h3 style={{ fontSize: '1.4rem' }}>{selectedCow.name || 'Unnamed Cow'} Analytics</h3>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '0.2rem' }}>Ear Tag: <strong>{selectedCow.tagNumber}</strong> &bull; Status: <span className={`status-badge ${selectedCow.status}`}>{selectedCow.status}</span></p>
+                </div>
+                <button 
+                  className="btn btn-secondary" 
+                  onClick={() => {
+                    setSelectedCowProfileId(null);
+                    setCattleForm({
+                      id: selectedCow.id,
+                      tagNumber: selectedCow.tagNumber,
+                      name: selectedCow.name || '',
+                      breed: selectedCow.breed,
+                      status: selectedCow.status,
+                      birthDate: selectedCow.birthDate || '',
+                      purchaseDate: selectedCow.purchaseDate || '',
+                      purchaseCost: selectedCow.purchaseCost?.toString() || '',
+                      notes: selectedCow.notes || '',
+                    });
+                    setShowAddCattleModal(true);
+                  }}
+                >
+                  <Edit size={14} /> Edit Profile
+                </button>
+              </div>
+
+              {/* Profitability Widgets */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+                <div className="card" style={{ background: netMargin >= 0 ? 'rgba(34, 197, 94, 0.05)' : 'rgba(239, 68, 68, 0.05)', borderColor: netMargin >= 0 ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)' }}>
+                  <p style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Net Margin</p>
+                  <p style={{ fontSize: '1.5rem', fontWeight: '800', color: netMargin >= 0 ? 'var(--success)' : 'var(--danger)', marginTop: '0.25rem' }}>
+                    {netMargin >= 0 ? '₹' : '-₹'}{Math.abs(netMargin)}
+                  </p>
+                </div>
+                <div className="card">
+                  <p style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Milk Revenue</p>
+                  <p style={{ fontSize: '1.25rem', fontWeight: '700', color: 'var(--text)', marginTop: '0.25rem' }}>₹{Math.round(totalIncome)}</p>
+                  <p style={{ fontSize: '0.7rem', color: 'var(--success)', marginTop: '0.2rem' }}>{cowLogs.reduce((sum, l) => sum + l.quantityLiters, 0).toFixed(1)}L total</p>
+                </div>
+                <div className="card">
+                  <p style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Vet Expenses</p>
+                  <p style={{ fontSize: '1.25rem', fontWeight: '700', color: 'var(--text)', marginTop: '0.25rem' }}>₹{vetCost}</p>
+                  <p style={{ fontSize: '0.7rem', color: 'var(--danger)', marginTop: '0.2rem' }}>{cowHealth.length} treatments</p>
+                </div>
+                <div className="card">
+                  <p style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Est. Feed Cost</p>
+                  <p style={{ fontSize: '1.25rem', fontWeight: '700', color: 'var(--text)', marginTop: '0.25rem' }}>₹{proratedFeedCost}</p>
+                  <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>Farm avg prorated</p>
+                </div>
+              </div>
+
+              {/* Yield Curve SVG Chart */}
+              <div className="card" style={{ marginBottom: '0' }}>
+                <div className="card-header" style={{ marginBottom: '1.5rem' }}>
+                  <h3 className="card-title"><TrendingUp size={16} /> Individual Yield Curve</h3>
+                </div>
+                {recentDates.length === 0 ? (
+                  <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem 0' }}>No milk logs recorded for this cow yet.</p>
+                ) : (
+                  <div style={{ height: '220px', width: '100%', position: 'relative' }}>
+                    <svg width="100%" height="100%" viewBox={`0 0 ${recentDates.length * 100 + 40} 220`} preserveAspectRatio="none">
+                      {/* Grid lines */}
+                      <line x1="40" y1="30" x2="100%" y2="30" className="chart-grid-line" />
+                      <line x1="40" y1="80" x2="100%" y2="80" className="chart-grid-line" />
+                      <line x1="40" y1="130" x2="100%" y2="130" className="chart-grid-line" />
+                      <line x1="40" y1="180" x2="100%" y2="180" stroke="var(--border)" strokeWidth="1.5" />
+
+                      {/* Y-axis labels */}
+                      <text x="5" y="34" className="chart-axis-text">20 L</text>
+                      <text x="5" y="84" className="chart-axis-text">15 L</text>
+                      <text x="5" y="134" className="chart-axis-text">10 L</text>
+                      <text x="5" y="184" className="chart-axis-text">0 L</text>
+
+                      {/* Render line and points */}
+                      {(() => {
+                        const points = recentDates.map((dateStr, idx) => {
+                          const dailyLogs = cowLogs.filter(l => l.logDate === dateStr);
+                          const totalLit = dailyLogs.reduce((sum, l) => sum + l.quantityLiters, 0);
+                          const scale = 150 / 20; // Max 20L for individual mapped to 150px
+                          const y = 180 - (totalLit * scale);
+                          const x = 70 + idx * 80;
+                          return { x, y, totalLit, dateStr };
+                        });
+
+                        const pathD = points.map((p, i) => (i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`)).join(' ');
+
+                        return (
+                          <>
+                            <path d={pathD} fill="none" stroke="var(--primary)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                            {points.map((p, i) => (
+                              <g key={i}>
+                                <circle cx={p.x} cy={p.y} r="5" fill="var(--bg-card)" stroke="var(--primary)" strokeWidth="2" />
+                                <text x={p.x} y={p.y - 12} style={{ fill: 'var(--text)', fontSize: '10px', fontWeight: '700', textAnchor: 'middle' }}>
+                                  {p.totalLit.toFixed(1)}L
+                                </text>
+                                <text x={p.x} y="202" className="chart-axis-text" style={{ textAnchor: 'middle' }}>
+                                  {p.dateStr.split('-')[2]}/{p.dateStr.split('-')[1]}
+                                </text>
+                              </g>
+                            ))}
+                          </>
+                        );
+                      })()}
+                    </svg>
+                  </div>
+                )}
+              </div>
+              
+            </div>
+          </div>
+        );
+      })()}
 
     </div>
   );
