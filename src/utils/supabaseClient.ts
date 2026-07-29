@@ -46,16 +46,47 @@ const initializeLocalDB = () => {
 
 initializeLocalDB();
 
+// Helper to map DB profiles to Frontend Profiles
+const mapProfile = (p: any): Profile => ({
+  id: p.id,
+  farmId: p.farm_id,
+  role: p.role,
+  fullName: p.full_name,
+  phoneNumber: p.phone_number,
+  securityPin: p.security_pin,
+  createdAt: p.created_at
+});
+
 export const db = {
   // Farm & Profile APIs
   getFarm: async (): Promise<Farm> => {
     if (isLiveDb && supabase) {
       const { data, error } = await supabase.from('farms').select('*').limit(1).maybeSingle();
-      if (!error && data) return data;
+      if (!error && data) {
+        return {
+          id: data.id,
+          name: data.name,
+          location: data.location,
+          createdAt: data.created_at
+        };
+      }
       
-      // If live but empty, seed DEFAULT_FARM
-      const { data: seeded } = await supabase.from('farms').insert([DEFAULT_FARM]).select().single();
-      if (seeded) return seeded;
+      // Seed default farm in database
+      const dbFarm = {
+        id: DEFAULT_FARM.id,
+        name: DEFAULT_FARM.name,
+        location: DEFAULT_FARM.location,
+        created_at: DEFAULT_FARM.createdAt
+      };
+      const { data: seeded } = await supabase.from('farms').insert([dbFarm]).select().single();
+      if (seeded) {
+        return {
+          id: seeded.id,
+          name: seeded.name,
+          location: seeded.location,
+          createdAt: seeded.created_at
+        };
+      }
     }
     return JSON.parse(localStorage.getItem(STORAGE_KEYS.FARM) || '{}');
   },
@@ -69,7 +100,14 @@ export const db = {
         .eq('id', farm.id)
         .select()
         .single();
-      if (data) return data;
+      if (data) {
+        return {
+          id: data.id,
+          name: data.name,
+          location: data.location,
+          createdAt: data.created_at
+        };
+      }
     }
     const farm = JSON.parse(localStorage.getItem(STORAGE_KEYS.FARM) || '{}');
     farm.name = name;
@@ -111,9 +149,21 @@ export const db = {
     ];
 
     if (isLiveDb && supabase) {
-      await supabase.from('farms').insert([newFarm]);
-      await supabase.from('profiles').insert(newProfiles);
-      // Clean lists for the new farm tenant in the cloud
+      await supabase.from('farms').insert([{
+        id: newFarm.id,
+        name: newFarm.name,
+        location: newFarm.location,
+        created_at: newFarm.createdAt
+      }]);
+      await supabase.from('profiles').insert(newProfiles.map(p => ({
+        id: p.id,
+        farm_id: p.farmId,
+        role: p.role,
+        full_name: p.fullName,
+        phone_number: p.phoneNumber,
+        security_pin: p.securityPin,
+        created_at: p.createdAt
+      })));
       return { farm: newFarm, profiles: newProfiles };
     }
 
@@ -136,11 +186,11 @@ export const db = {
       const manager = list.find(p => p.role === 'manager');
       
       if (owner) {
-        await supabase.from('profiles').update({ fullName: ownerName }).eq('id', owner.id);
+        await supabase.from('profiles').update({ full_name: ownerName }).eq('id', owner.id);
       }
       if (manager) {
-        const updateData: Partial<Profile> = { fullName: managerName };
-        if (managerPin) updateData.securityPin = managerPin;
+        const updateData: any = { full_name: managerName };
+        if (managerPin) updateData.security_pin = managerPin;
         await supabase.from('profiles').update(updateData).eq('id', manager.id);
       }
       return db.getProfiles();
@@ -189,10 +239,19 @@ export const db = {
     if (isLiveDb && supabase) {
       const farm = await db.getFarm();
       const { data } = await supabase.from('profiles').select('*').eq('farm_id', farm.id);
-      if (data && data.length > 0) return data;
+      if (data && data.length > 0) return data.map(mapProfile);
       
       // If live but empty profiles, seed them
-      await supabase.from('profiles').insert(MOCK_PROFILES.map(p => ({ ...p, farm_id: farm.id })));
+      const dbProfiles = MOCK_PROFILES.map(p => ({
+        id: p.id,
+        farm_id: farm.id,
+        role: p.role,
+        full_name: p.fullName,
+        phone_number: p.phoneNumber,
+        security_pin: p.securityPin,
+        created_at: p.createdAt
+      }));
+      await supabase.from('profiles').insert(dbProfiles);
       return MOCK_PROFILES;
     }
     return JSON.parse(localStorage.getItem(STORAGE_KEYS.PROFILES) || '[]');
@@ -212,7 +271,6 @@ export const db = {
       const farm = await db.getFarm();
       const { data } = await supabase.from('cattle').select('*').eq('farm_id', farm.id);
       if (data) {
-        // Map postgres snake_case to camelCase
         const mapped = data.map(c => ({
           id: c.id,
           farmId: c.farm_id,
