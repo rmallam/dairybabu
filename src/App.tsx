@@ -231,7 +231,7 @@ function App() {
       setFarmCodeInput('');
       setFarmCodeError('');
     } else {
-      setFarmCodeError('Invalid Access Code. For the demo, use: farm-khammam-001');
+      setFarmCodeError('Invalid Access Code. Please check the spelling or register a new farm.');
     }
   };
 
@@ -806,21 +806,10 @@ function App() {
                       type="text" 
                       className="form-control" 
                       required 
-                      placeholder="e.g. farm-khammam-001"
+                      placeholder="e.g. farm-17852992"
                       value={farmCodeInput}
                       onChange={e => setFarmCodeInput(e.target.value)}
                     />
-                    <div style={{ marginTop: '1rem', padding: '0.75rem', background: 'var(--card-hover)', borderRadius: '6px', border: '1px dashed var(--border)', fontSize: '0.8rem', textAlign: 'center' }}>
-                      💡 Want to try the Demo Farm?<br />
-                      <button 
-                        type="button" 
-                        className="btn btn-secondary" 
-                        style={{ marginTop: '0.4rem', padding: '0.3rem 0.6rem', fontSize: '0.75rem', color: 'var(--primary)', borderColor: 'var(--primary)', height: 'auto', display: 'inline-block' }}
-                        onClick={() => setFarmCodeInput('farm-khammam-001')}
-                      >
-                        Autofill Code: farm-khammam-001
-                      </button>
-                    </div>
                     {farmCodeError && (
                       <p style={{ color: 'var(--danger)', fontSize: '0.75rem', marginTop: '0.5rem' }}>
                         ⚠️ {farmCodeError}
@@ -860,7 +849,7 @@ function App() {
                         type="text" 
                         className="form-control" 
                         required 
-                        placeholder="e.g. farm-khammam-001"
+                        placeholder="e.g. farm-17852992"
                         value={resetOwnerCodeInput}
                         onChange={e => setResetOwnerCodeInput(e.target.value)}
                         autoComplete="off"

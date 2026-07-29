@@ -77,25 +77,6 @@ export const db = {
           createdAt: data.created_at
         };
       }
-      
-      // Seed default farm in database if it doesn't exist and they are trying to load the demo
-      if (id === 'farm-khammam-001') {
-        const dbFarm = {
-          id: DEFAULT_FARM.id,
-          name: DEFAULT_FARM.name,
-          location: DEFAULT_FARM.location,
-          created_at: DEFAULT_FARM.createdAt
-        };
-        const { data: seeded } = await supabase.from('farms').insert([dbFarm]).select().single();
-        if (seeded) {
-          return {
-            id: seeded.id,
-            name: seeded.name,
-            location: seeded.location,
-            createdAt: seeded.created_at
-          };
-        }
-      }
       return null;
     }
     const localFarm = JSON.parse(localStorage.getItem(STORAGE_KEYS.FARM) || '{}');
@@ -323,21 +304,10 @@ export const db = {
   getProfiles: async (): Promise<Profile[]> => {
     if (isLiveDb && supabase) {
       const farm = await db.getFarm();
+      if (!farm || !farm.id) return [];
       const { data } = await supabase.from('profiles').select('*').eq('farm_id', farm.id);
       if (data && data.length > 0) return data.map(mapProfile);
-      
-      // If live but empty profiles, seed them
-      const dbProfiles = MOCK_PROFILES.map(p => ({
-        id: p.id,
-        farm_id: farm.id,
-        role: p.role,
-        full_name: p.fullName,
-        phone_number: p.phoneNumber,
-        security_pin: p.securityPin,
-        created_at: p.createdAt
-      }));
-      await supabase.from('profiles').insert(dbProfiles);
-      return MOCK_PROFILES;
+      return [];
     }
     return JSON.parse(localStorage.getItem(STORAGE_KEYS.PROFILES) || '[]');
   },
