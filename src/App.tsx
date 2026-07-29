@@ -49,11 +49,8 @@ function App() {
 
   // Active Farm Code ID (SaaS Multi-Tenancy Gateway)
   const [activeFarmId, setActiveFarmId] = useState<string | null>(localStorage.getItem('ourdairy_active_farm_id'));
-  const [farmCodeInput, setFarmCodeInput] = useState('');
-  const [farmCodeError, setFarmCodeError] = useState('');
-  
-  // Forgot Code Recovery States
-  const [showFarmFinder, setShowFarmFinder] = useState(false);
+  const [farmFinderSearch, setFarmFinderSearch] = useState('');
+  const [farmFinderResults, setFarmFinderResults] = useState<{id: string, name: string, location: string, ownerName: string}[]>([]);
   
   // Owner PIN Recovery States
   const [showOwnerPinReset, setShowOwnerPinReset] = useState(false);
@@ -65,8 +62,6 @@ function App() {
   const [resetOwnerQuestionText, setResetOwnerQuestionText] = useState('');
   const [resetOwnerAnswerInput, setResetOwnerAnswerInput] = useState('');
   const [resetOwnerSecretMatch, setResetOwnerSecretMatch] = useState(''); // Holds the exact answer value to match
-  const [farmFinderSearch, setFarmFinderSearch] = useState('');
-  const [farmFinderResults, setFarmFinderResults] = useState<{ id: string, name: string, location: string, ownerName: string }[]>([]);
 
   // Farm State
   const [farm, setFarm] = useState<Farm>({ id: '', name: 'Loading...', location: '', createdAt: '' });
@@ -217,24 +212,6 @@ function App() {
 
   const handleLogout = () => {
     setIsLoggedIn(false);
-  };
-
-  const handleEnterFarmPortal = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!farmCodeInput.trim()) return;
-
-    setFarmCodeError('');
-    const code = farmCodeInput.trim();
-    const f = await db.getFarmById(code);
-    if (f) {
-      localStorage.setItem('ourdairy_active_farm_id', f.id);
-      setActiveFarmId(f.id);
-      setFarmCodeInput('');
-      setFarmCodeError('');
-      await refreshData(f.id);
-    } else {
-      setFarmCodeError('Invalid Access Code. Please check the spelling or register a new farm.');
-    }
   };
 
   const handleExitFarmPortal = () => {
@@ -731,10 +708,9 @@ function App() {
               </form>
             </div>
           ) : !activeFarmId ? (
-            showFarmFinder ? (
               <div>
-                <h2 style={{ fontSize: '1.6rem', marginBottom: '0.25rem', fontFamily: 'var(--font-title)' }}>Find Your Farm 🔍</h2>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginBottom: '1.5rem' }}>Search by Farm Name or Owner Name to retrieve your access code.</p>
+                <h2 style={{ fontSize: '1.8rem', marginBottom: '0.25rem', fontFamily: 'var(--font-title)' }}>OurDairy 🐄</h2>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginBottom: '1.5rem' }}>Search by Farm Name or Owner to access your ledger.</p>
 
                 <div style={{ textAlign: 'left' }}>
                   <div className="form-group">
@@ -758,7 +734,6 @@ function App() {
                         onClick={async () => {
                           localStorage.setItem('ourdairy_active_farm_id', r.id);
                           setActiveFarmId(r.id);
-                          setShowFarmFinder(false);
                           setFarmFinderSearch('');
                           setFarmFinderResults([]);
                           await refreshData(r.id);
@@ -774,69 +749,19 @@ function App() {
                     )}
                   </div>
 
-                  <button 
-                    type="button" 
-                    className="btn btn-secondary" 
-                    style={{ width: '100%', padding: '0.8rem', marginTop: '0.5rem' }}
-                    onClick={() => {
-                      setShowFarmFinder(false);
-                      setFarmFinderSearch('');
-                      setFarmFinderResults([]);
-                    }}
-                  >
-                    Back to Portal Login
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div>
-                <h2 style={{ fontSize: '1.8rem', marginBottom: '0.25rem', fontFamily: 'var(--font-title)' }}>OurDairy 🐄</h2>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1.5rem' }}>Enter your Farm Code to access your ledger.</p>
-
-                <form onSubmit={handleEnterFarmPortal} style={{ textAlign: 'left', marginTop: '1.5rem' }}>
-                  <div className="form-group">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
-                      <label htmlFor="farm-code-input" style={{ marginBottom: 0 }}>Farm Access Code *</label>
-                      <span 
-                        onClick={() => setShowFarmFinder(true)} 
-                        style={{ fontSize: '0.75rem', color: 'var(--primary)', textDecoration: 'underline', cursor: 'pointer', fontWeight: '600' }}
-                      >
-                        Forgot Code?
-                      </span>
-                    </div>
-                    <input 
-                      id="farm-code-input"
-                      type="text" 
-                      className="form-control" 
-                      required 
-                      placeholder="e.g. farm-17852992"
-                      value={farmCodeInput}
-                      onChange={e => setFarmCodeInput(e.target.value)}
-                    />
-                    {farmCodeError && (
-                      <p style={{ color: 'var(--danger)', fontSize: '0.75rem', marginTop: '0.5rem' }}>
-                        ⚠️ {farmCodeError}
-                      </p>
-                    )}
-                  </div>
-
-                  <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1.5rem', padding: '0.8rem' }}>
-                    Enter Farm Portal
-                  </button>
-                  
-                  <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
+                  <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.5rem' }}>
                     <button 
                       type="button"
                       onClick={() => setShowRegisterFarm(true)}
                       className="btn btn-secondary" 
-                      style={{ flex: 1, padding: '0.5rem', fontSize: '0.8rem' }}
+                      style={{ flex: 1, padding: '0.8rem', fontSize: '0.9rem' }}
                     >
                       🚀 Register New Farm
                     </button>
                   </div>
-                </form>
+                </div>
               </div>
-            )
+
           ) : showOwnerPinReset ? (
             <div>
               <h2 style={{ fontSize: '1.6rem', marginBottom: '0.25rem', fontFamily: 'var(--font-title)' }}>Reset Owner PIN 🔑</h2>
@@ -982,7 +907,10 @@ function App() {
                     <label htmlFor="pin-input" style={{ marginBottom: 0 }}>Enter Security PIN</label>
                     {loginRole === 'owner' && (
                       <span 
-                        onClick={() => setShowOwnerPinReset(true)} 
+                        onClick={() => {
+                          setShowOwnerPinReset(true);
+                          setResetOwnerCodeInput(activeFarmId || '');
+                        }} 
                         style={{ fontSize: '0.75rem', color: 'var(--primary)', textDecoration: 'underline', cursor: 'pointer', fontWeight: '600' }}
                       >
                         Forgot PIN?
