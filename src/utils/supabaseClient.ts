@@ -112,6 +112,52 @@ export const db = {
     if (localFarm.id === id) return localFarm;
     return null;
   },
+
+  searchFarms: async (query: string): Promise<{ id: string, name: string, location: string, ownerName: string }[]> => {
+    if (!query.trim()) return [];
+    const cleanQuery = query.trim().toLowerCase();
+    
+    if (isLiveDb && supabase) {
+      // 1. Fetch farms
+      const { data: farms } = await supabase.from('farms').select('id, name, location');
+      if (!farms) return [];
+      
+      // 2. Fetch owners
+      const { data: profiles } = await supabase.from('profiles').select('farm_id, role, full_name').eq('role', 'owner');
+      
+      const results = farms.map(f => {
+        const owner = profiles?.find(p => p.farm_id === f.id);
+        return {
+          id: f.id,
+          name: f.name,
+          location: f.location || '',
+          ownerName: owner?.full_name || ''
+        };
+      }).filter(r => 
+        r.name.toLowerCase().includes(cleanQuery) || 
+        r.ownerName.toLowerCase().includes(cleanQuery)
+      );
+      
+      return results;
+    }
+    
+    const localFarm = JSON.parse(localStorage.getItem(STORAGE_KEYS.FARM) || '{}');
+    const localProfiles = JSON.parse(localStorage.getItem(STORAGE_KEYS.PROFILES) || '[]');
+    const owner = localProfiles.find((p: any) => p.role === 'owner');
+    
+    if (localFarm.id && (
+      localFarm.name.toLowerCase().includes(cleanQuery) || 
+      (owner && owner.fullName.toLowerCase().includes(cleanQuery))
+    )) {
+      return [{
+        id: localFarm.id,
+        name: localFarm.name,
+        location: localFarm.location || '',
+        ownerName: owner ? owner.fullName : ''
+      }];
+    }
+    return [];
+  },
   
   updateFarm: async (name: string, location: string): Promise<Farm> => {
     if (isLiveDb && supabase) {

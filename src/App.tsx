@@ -39,6 +39,11 @@ function App() {
   const [activeFarmId, setActiveFarmId] = useState<string | null>(localStorage.getItem('dairybabu_active_farm_id'));
   const [farmCodeInput, setFarmCodeInput] = useState('');
   const [farmCodeError, setFarmCodeError] = useState('');
+  
+  // Forgot Code Recovery States
+  const [showFarmFinder, setShowFarmFinder] = useState(false);
+  const [farmFinderSearch, setFarmFinderSearch] = useState('');
+  const [farmFinderResults, setFarmFinderResults] = useState<{ id: string, name: string, location: string, ownerName: string }[]>([]);
 
   // Farm State
   const [farm, setFarm] = useState<Farm>({ id: '', name: 'Loading...', location: '', createdAt: '' });
@@ -212,6 +217,17 @@ function App() {
     setActiveFarmId(null);
     setPinInput('');
     setLoginError('');
+  };
+
+  const handleFarmSearchChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setFarmFinderSearch(val);
+    if (val.trim().length >= 2) {
+      const results = await db.searchFarms(val);
+      setFarmFinderResults(results);
+    } else {
+      setFarmFinderResults([]);
+    }
   };
 
   const handleRegisterFarmSubmit = async (e: React.FormEvent) => {
@@ -562,48 +578,114 @@ function App() {
               </form>
             </div>
           ) : !activeFarmId ? (
-            <div>
-              <h2 style={{ fontSize: '1.8rem', marginBottom: '0.25rem', fontFamily: 'var(--font-title)' }}>DairyBabu 🐄</h2>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1.5rem' }}>Enter your Farm Code to access your ledger.</p>
+            showFarmFinder ? (
+              <div>
+                <h2 style={{ fontSize: '1.6rem', marginBottom: '0.25rem', fontFamily: 'var(--font-title)' }}>Find Your Farm 🔍</h2>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginBottom: '1.5rem' }}>Search by Farm Name or Owner Name to retrieve your access code.</p>
 
-              <form onSubmit={handleEnterFarmPortal} style={{ textAlign: 'left', marginTop: '1.5rem' }}>
-                <div className="form-group">
-                  <label htmlFor="farm-code-input">Farm Access Code *</label>
-                  <input 
-                    id="farm-code-input"
-                    type="text" 
-                    className="form-control" 
-                    required 
-                    placeholder="e.g. farm-khammam-001"
-                    value={farmCodeInput}
-                    onChange={e => setFarmCodeInput(e.target.value)}
-                  />
-                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.4rem' }}>
-                    💡 Tip: To view the demo farm, use code: <strong>farm-khammam-001</strong>
-                  </p>
-                  {farmCodeError && (
-                    <p style={{ color: 'var(--danger)', fontSize: '0.75rem', marginTop: '0.5rem' }}>
-                      ⚠️ {farmCodeError}
-                    </p>
-                  )}
-                </div>
+                <div style={{ textAlign: 'left' }}>
+                  <div className="form-group">
+                    <label htmlFor="farm-finder-input">Search Farm / Owner *</label>
+                    <input 
+                      id="farm-finder-input"
+                      type="text" 
+                      className="form-control" 
+                      placeholder="e.g. Raade or Rakesh"
+                      value={farmFinderSearch}
+                      onChange={handleFarmSearchChange}
+                      style={{ padding: '0.6rem 0.8rem', fontSize: '0.9rem' }}
+                    />
+                  </div>
 
-                <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1.5rem', padding: '0.8rem' }}>
-                  Enter Farm Portal
-                </button>
-                
-                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
+                  <div style={{ maxHeight: '180px', overflowY: 'auto', margin: '1rem 0', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    {farmFinderResults.map(r => (
+                      <div 
+                        key={r.id} 
+                        style={{ padding: '0.75rem', background: 'var(--card-hover)', border: '1px solid var(--border)', borderRadius: '4px', cursor: 'pointer', textAlign: 'left' }}
+                        onClick={() => {
+                          localStorage.setItem('dairybabu_active_farm_id', r.id);
+                          setActiveFarmId(r.id);
+                          setShowFarmFinder(false);
+                          setFarmFinderSearch('');
+                          setFarmFinderResults([]);
+                        }}
+                      >
+                        <p style={{ fontWeight: '700', fontSize: '0.9rem', color: 'var(--text)' }}>🏠 {r.name}</p>
+                        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Owner: {r.ownerName} &bull; {r.location}</p>
+                        <code style={{ fontSize: '0.75rem', color: 'var(--primary)', marginTop: '0.25rem', display: 'block' }}>Code: {r.id}</code>
+                      </div>
+                    ))}
+                    {farmFinderSearch.trim().length >= 2 && farmFinderResults.length === 0 && (
+                      <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textAlign: 'center', padding: '1rem' }}>No farms found matching "{farmFinderSearch}"</p>
+                    )}
+                  </div>
+
                   <button 
-                    type="button"
-                    onClick={() => setShowRegisterFarm(true)}
+                    type="button" 
                     className="btn btn-secondary" 
-                    style={{ flex: 1, padding: '0.5rem', fontSize: '0.8rem' }}
+                    style={{ width: '100%', padding: '0.8rem', marginTop: '0.5rem' }}
+                    onClick={() => {
+                      setShowFarmFinder(false);
+                      setFarmFinderSearch('');
+                      setFarmFinderResults([]);
+                    }}
                   >
-                    🚀 Register New Farm
+                    Back to Portal Login
                   </button>
                 </div>
-              </form>
-            </div>
+              </div>
+            ) : (
+              <div>
+                <h2 style={{ fontSize: '1.8rem', marginBottom: '0.25rem', fontFamily: 'var(--font-title)' }}>DairyBabu 🐄</h2>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1.5rem' }}>Enter your Farm Code to access your ledger.</p>
+
+                <form onSubmit={handleEnterFarmPortal} style={{ textAlign: 'left', marginTop: '1.5rem' }}>
+                  <div className="form-group">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                      <label htmlFor="farm-code-input" style={{ marginBottom: 0 }}>Farm Access Code *</label>
+                      <span 
+                        onClick={() => setShowFarmFinder(true)} 
+                        style={{ fontSize: '0.75rem', color: 'var(--primary)', textDecoration: 'underline', cursor: 'pointer', fontWeight: '600' }}
+                      >
+                        Forgot Code?
+                      </span>
+                    </div>
+                    <input 
+                      id="farm-code-input"
+                      type="text" 
+                      className="form-control" 
+                      required 
+                      placeholder="e.g. farm-khammam-001"
+                      value={farmCodeInput}
+                      onChange={e => setFarmCodeInput(e.target.value)}
+                    />
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.4rem' }}>
+                      💡 Tip: To view the demo farm, use code: <strong>farm-khammam-001</strong>
+                    </p>
+                    {farmCodeError && (
+                      <p style={{ color: 'var(--danger)', fontSize: '0.75rem', marginTop: '0.5rem' }}>
+                        ⚠️ {farmCodeError}
+                      </p>
+                    )}
+                  </div>
+
+                  <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1.5rem', padding: '0.8rem' }}>
+                    Enter Farm Portal
+                  </button>
+                  
+                  <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
+                    <button 
+                      type="button"
+                      onClick={() => setShowRegisterFarm(true)}
+                      className="btn btn-secondary" 
+                      style={{ flex: 1, padding: '0.5rem', fontSize: '0.8rem' }}
+                    >
+                      🚀 Register New Farm
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )
           ) : (
             <div>
               <h2 style={{ fontSize: '1.8rem', marginBottom: '0.25rem', fontFamily: 'var(--font-title)' }}>DairyBabu 🐄</h2>
