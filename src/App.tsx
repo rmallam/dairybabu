@@ -527,6 +527,7 @@ function App() {
                     placeholder="e.g. Rakesh Kumar"
                     value={registerForm.ownerName}
                     onChange={e => setRegisterForm(prev => ({ ...prev, ownerName: e.target.value }))}
+                    autoComplete="off"
                   />
                 </div>
 
@@ -539,6 +540,7 @@ function App() {
                     placeholder="e.g. Gopal"
                     value={registerForm.managerName}
                     onChange={e => setRegisterForm(prev => ({ ...prev, managerName: e.target.value }))}
+                    autoComplete="off"
                   />
                 </div>
 
@@ -551,6 +553,7 @@ function App() {
                     placeholder="e.g. Sri Krishna Ghee Farms"
                     value={registerForm.farmName}
                     onChange={e => setRegisterForm(prev => ({ ...prev, farmName: e.target.value }))}
+                    autoComplete="off"
                   />
                 </div>
 
@@ -562,6 +565,7 @@ function App() {
                     placeholder="e.g. Khammam rural, Telangana"
                     value={registerForm.location}
                     onChange={e => setRegisterForm(prev => ({ ...prev, location: e.target.value }))}
+                    autoComplete="off"
                   />
                 </div>
 
