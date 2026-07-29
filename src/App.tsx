@@ -769,10 +769,7 @@ function App() {
                   </button>
                 </div>
 
-                <div style={{ marginTop: '1.5rem', padding: '0.75rem', background: 'var(--card-hover)', borderRadius: '6px', border: '1px dashed var(--border)', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                  🔑 <strong>Demo Access PINs</strong><br />
-                  Owner ({profiles.find(p => p.role === 'owner')?.fullName.split(' ')[0] || 'Owner'}): <strong>{profiles.find(p => p.role === 'owner')?.securityPin || '0000'}</strong> &bull; Manager ({profiles.find(p => p.role === 'manager')?.fullName.split(' ')[0] || 'Manager'}): <strong>{profiles.find(p => p.role === 'manager')?.securityPin || '1111'}</strong>
-                </div>
+
               </form>
             </div>
           )
