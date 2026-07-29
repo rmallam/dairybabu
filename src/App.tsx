@@ -215,12 +215,11 @@ function App() {
     }
   };
 
-  // Submit Handlers
-  const handleCattleSubmit = (e: React.FormEvent) => {
+  const handleCattleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!cattleForm.tagNumber) return;
 
-    db.saveCattle({
+    await db.saveCattle({
       id: cattleForm.id || undefined,
       tagNumber: cattleForm.tagNumber,
       name: cattleForm.name || undefined,
@@ -245,10 +244,10 @@ function App() {
       purchaseCost: '',
       notes: '',
     });
-    refreshData();
+    await refreshData();
   };
 
-  const handleMilkLogSubmit = (e: React.FormEvent) => {
+  const handleMilkLogSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!milkLogForm.quantityLiters) return;
 
@@ -257,7 +256,7 @@ function App() {
       selectedCow = cattle.find(c => c.id === milkLogForm.cattleId);
     }
 
-    db.saveMilkLog({
+    await db.saveMilkLog({
       cattleId: milkLogType === 'individual' ? milkLogForm.cattleId : undefined,
       cattleName: milkLogType === 'individual' ? selectedCow?.name : undefined,
       cattleTag: milkLogType === 'individual' ? selectedCow?.tagNumber : undefined,
@@ -276,7 +275,7 @@ function App() {
     const rate = calculateMilkRate(fat, snf);
     const totalPayout = Math.round(lit * rate);
 
-    db.saveTransaction({
+    await db.saveTransaction({
       type: 'income',
       category: 'Milk Sales',
       amount: totalPayout,
@@ -297,14 +296,14 @@ function App() {
       fatPercentage: '',
       snfPercentage: '',
     });
-    refreshData();
+    await refreshData();
   };
 
-  const handleTxSubmit = (e: React.FormEvent) => {
+  const handleTxSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!txForm.amount) return;
 
-    db.saveTransaction({
+    await db.saveTransaction({
       type: txForm.type,
       category: txForm.category,
       amount: parseFloat(txForm.amount),
@@ -325,10 +324,10 @@ function App() {
       notes: '',
       receiptPhoto: null,
     });
-    refreshData();
+    await refreshData();
   };
 
-  const handleHealthSubmit = (e: React.FormEvent) => {
+  const handleHealthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!healthForm.cattleId || !healthForm.title) return;
 
@@ -337,7 +336,7 @@ function App() {
 
     const costNum = healthForm.cost ? parseFloat(healthForm.cost) : 0;
 
-    db.saveHealthLog({
+    await db.saveHealthLog({
       cattleId: healthForm.cattleId,
       cattleName: selectedCow.name || 'Unnamed',
       cattleTag: selectedCow.tagNumber,
@@ -353,7 +352,7 @@ function App() {
 
     // Record health cost in financials automatically
     if (costNum > 0) {
-      db.saveTransaction({
+      await db.saveTransaction({
         type: 'expense',
         category: 'Medicines',
         amount: costNum,
@@ -375,13 +374,13 @@ function App() {
       performedBy: '',
       notes: '',
     });
-    refreshData();
+    await refreshData();
   };
 
-  const handleCompleteVaccine = (logId: string) => {
+  const handleCompleteVaccine = async (logId: string) => {
     const todayStr = new Date().toISOString().split('T')[0];
-    db.updateHealthStatus(logId, 'completed', todayStr);
-    refreshData();
+    await db.updateHealthStatus(logId, 'completed', todayStr);
+    await refreshData();
   };
 
   // Calculations
@@ -1190,7 +1189,7 @@ function App() {
                       >
                         <Edit size={14} /> Edit
                       </button>
-                      {activeProfile.role === 'owner' && (
+                      {(activeProfile.role === 'owner' || activeProfile.role === 'manager') && (
                         <button 
                           className="btn btn-danger" 
                           style={{ padding: '0.4rem 0.6rem' }}
@@ -1333,7 +1332,7 @@ function App() {
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
               <h3 style={{ fontSize: '1.1rem' }}>All Farm Treatment Schedules</h3>
-              {activeProfile.role === 'owner' && (
+              {(activeProfile.role === 'owner' || activeProfile.role === 'manager') && (
                 <button onClick={() => setShowAddHealthModal(true)} className="btn btn-primary">
                   <Plus size={16} /> Schedule Treatment
                 </button>
