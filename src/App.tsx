@@ -20,6 +20,8 @@ import {
 } from 'lucide-react';
 import { db } from './utils/supabaseClient';
 import type { Farm, Profile, Cattle, MilkLog, HealthLog, Transaction, BreedingLog, InventoryItem } from './types';
+import { useTranslation } from "react-i18next";
+import i18n from './i18n';
 
 const getGreeting = () => {
   const hour = new Date().getHours();
@@ -37,6 +39,7 @@ const SECRET_QUESTIONS = [
 ];
 
 function App() {
+    const { t } = useTranslation();
   // Theme State
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
@@ -324,7 +327,7 @@ function App() {
       }
 
       await db.resetOwnerPin(activeFarmId || '', pin);
-      alert('Owner PIN reset successfully! Please log in using your new PIN.');
+      alert(t('owner_pin_reset_succ'));
       
       // Clear state
       setResetOwnerCodeInput('');
@@ -562,7 +565,7 @@ function App() {
 
     const consumedAmount = parseFloat(consumeInventoryForm.quantity);
     if (consumedAmount > item.quantity) {
-      alert("Cannot consume more than current stock!");
+      alert(t('cannot_consume_more_'));
       return;
     }
 
@@ -667,22 +670,40 @@ function App() {
   if (!isLoggedIn) {
     return (
       <div className="login-overlay">
+        <div style={{ position: 'absolute', top: '1rem', right: '1rem', zIndex: 10 }}>
+          <select 
+            className="form-control" 
+            style={{ width: 'auto', display: 'inline-block', backgroundColor: 'var(--bg-card)', padding: '0.5rem' }}
+            value={i18n.language}
+            onChange={(e) => {
+              i18n.changeLanguage(e.target.value);
+              localStorage.setItem('dairy_app_language', e.target.value);
+            }}
+          >
+            <option value="en">English</option>
+            <option value="hi">हिंदी (Hindi)</option>
+            <option value="te">తెలుగు (Telugu)</option>
+            <option value="mr">मराठी (Marathi)</option>
+            <option value="ta">தமிழ் (Tamil)</option>
+            <option value="kn">ಕನ್ನಡ (Kannada)</option>
+          </select>
+        </div>
         <div className="login-card">
-          <div className="login-logo">🐄</div>
+          <div className="login-logo">{t('key')}</div>
           
           {showRegisterFarm ? (
             <div>
-              <h2 style={{ fontSize: '1.6rem', marginBottom: '0.25rem', fontFamily: 'var(--font-title)' }}>Register SaaS Farm</h2>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginBottom: '1.5rem' }}>Create a new isolated tenant database</p>
+              <h2 style={{ fontSize: '1.6rem', marginBottom: '0.25rem', fontFamily: 'var(--font-title)' }}>{t('register_saas_farm')}</h2>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginBottom: '1.5rem' }}>{t('create_a_new_isolate')}</p>
 
               <form onSubmit={handleRegisterFarmSubmit} style={{ textAlign: 'left' }}>
                 <div className="form-group">
-                  <label>Owner Name *</label>
+                  <label>{t('owner_name_')}</label>
                   <input 
                     type="text" 
                     className="form-control" 
                     required 
-                    placeholder="e.g. John Doe"
+                    placeholder={t('eg_john_doe')}
                     value={registerForm.ownerName}
                     onChange={e => setRegisterForm(prev => ({ ...prev, ownerName: e.target.value }))}
                     autoComplete="off"
@@ -690,12 +711,12 @@ function App() {
                 </div>
 
                 <div className="form-group">
-                  <label>Owner Phone Number * (For PIN Recovery)</label>
+                  <label>{t('owner_phone_number_f')}</label>
                   <input 
                     type="tel" 
                     className="form-control" 
                     required 
-                    placeholder="e.g. +61 412 345 678"
+                    placeholder={t('eg_61_412_345_678')}
                     value={registerForm.ownerPhone}
                     onChange={e => setRegisterForm(prev => ({ ...prev, ownerPhone: e.target.value }))}
                     autoComplete="off"
@@ -703,12 +724,12 @@ function App() {
                 </div>
 
                 <div className="form-group">
-                  <label>Manager Name *</label>
+                  <label>{t('manager_name_')}</label>
                   <input 
                     type="text" 
                     className="form-control" 
                     required 
-                    placeholder="e.g. Jane Smith"
+                    placeholder={t('eg_jane_smith')}
                     value={registerForm.managerName}
                     onChange={e => setRegisterForm(prev => ({ ...prev, managerName: e.target.value }))}
                     autoComplete="off"
@@ -716,12 +737,12 @@ function App() {
                 </div>
 
                 <div className="form-group">
-                  <label>Farm Name *</label>
+                  <label>{t('farm_name_')}</label>
                   <input 
                     type="text" 
                     className="form-control" 
                     required 
-                    placeholder="e.g. Sri Krishna Ghee Farms"
+                    placeholder={t('eg_sri_krishna_ghee_')}
                     value={registerForm.farmName}
                     onChange={e => setRegisterForm(prev => ({ ...prev, farmName: e.target.value }))}
                     autoComplete="off"
@@ -729,11 +750,11 @@ function App() {
                 </div>
 
                 <div className="form-group">
-                  <label>Location (Mandi/Village)</label>
+                  <label>{t('location_mandivillag')}</label>
                   <input 
                     type="text" 
                     className="form-control" 
-                    placeholder="e.g. Khammam rural, Telangana"
+                    placeholder={t('eg_khammam_rural_tel')}
                     value={registerForm.location}
                     onChange={e => setRegisterForm(prev => ({ ...prev, location: e.target.value }))}
                     autoComplete="off"
@@ -741,7 +762,7 @@ function App() {
                 </div>
 
                 <div className="form-group" style={{ marginTop: '0.5rem' }}>
-                  <label>Secret Recovery Question * (For PIN Recovery)</label>
+                  <label>{t('secret_recovery_ques')}</label>
                   <select 
                     className="form-control" 
                     required
@@ -756,12 +777,12 @@ function App() {
                 </div>
 
                 <div className="form-group" style={{ marginTop: '0.5rem' }}>
-                  <label>Secret Answer *</label>
+                  <label>{t('secret_answer_')}</label>
                   <input 
                     type="text" 
                     className="form-control" 
                     required 
-                    placeholder="e.g. Ganga"
+                    placeholder={t('eg_ganga')}
                     value={registerForm.recoveryAnswer}
                     onChange={e => setRegisterForm(prev => ({ ...prev, recoveryAnswer: e.target.value }))}
                     autoComplete="off"
@@ -775,27 +796,25 @@ function App() {
                     style={{ flex: 1 }} 
                     onClick={() => setShowRegisterFarm(false)}
                   >
-                    Back to Log In
-                  </button>
+                    {t('back_to_log_in')}</button>
                   <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>
-                    Register & Enter
-                  </button>
+                    {t('register_enter')}</button>
                 </div>
               </form>
             </div>
           ) : !activeFarmId ? (
               <div>
-                <h2 style={{ fontSize: '1.8rem', marginBottom: '0.25rem', fontFamily: 'var(--font-title)' }}>OurDairy 🐄</h2>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginBottom: '1.5rem' }}>Search by Farm Name or Owner to access your ledger.</p>
+                <h2 style={{ fontSize: '1.8rem', marginBottom: '0.25rem', fontFamily: 'var(--font-title)' }}>{t('ourdairy_')}</h2>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginBottom: '1.5rem' }}>{t('search_by_farm_name_')}</p>
 
                 <div style={{ textAlign: 'left' }}>
                   <div className="form-group">
-                    <label htmlFor="farm-finder-input">Search Farm / Owner *</label>
+                    <label htmlFor="farm-finder-input">{t('search_farm_owner_')}</label>
                     <input 
                       id="farm-finder-input"
                       type="text" 
                       className="form-control" 
-                      placeholder="e.g. Raade or Rakesh"
+                      placeholder={t('eg_raade_or_rakesh')}
                       value={farmFinderSearch}
                       onChange={handleFarmSearchChange}
                       style={{ padding: '0.6rem 0.8rem', fontSize: '0.9rem' }}
@@ -815,13 +834,13 @@ function App() {
                           await refreshData(r.id);
                         }}
                       >
-                        <p style={{ fontWeight: '700', fontSize: '0.9rem', color: 'var(--text)' }}>🏠 {r.name}</p>
-                        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Owner: {r.ownerName} &bull; {r.location}</p>
-                        <code style={{ fontSize: '0.75rem', color: 'var(--primary)', marginTop: '0.25rem', display: 'block' }}>Code: {r.id}</code>
+                        <p style={{ fontWeight: '700', fontSize: '0.9rem', color: 'var(--text)' }}>{t('key_1')}{r.name}</p>
+                        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('owner')}{r.ownerName} {t('bull')}{r.location}</p>
+                        <code style={{ fontSize: '0.75rem', color: 'var(--primary)', marginTop: '0.25rem', display: 'block' }}>{t('code')}{r.id}</code>
                       </div>
                     ))}
                     {farmFinderSearch.trim().length >= 2 && farmFinderResults.length === 0 && (
-                      <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textAlign: 'center', padding: '1rem' }}>No farms found matching "{farmFinderSearch}"</p>
+                      <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textAlign: 'center', padding: '1rem' }}>{t('no_farms_found_match')}{farmFinderSearch}{t('key_2')}</p>
                     )}
                   </div>
 
@@ -832,28 +851,27 @@ function App() {
                       className="btn btn-secondary" 
                       style={{ flex: 1, padding: '0.8rem', fontSize: '0.9rem' }}
                     >
-                      🚀 Register New Farm
-                    </button>
+                      {t('_register_new_farm')}</button>
                   </div>
                 </div>
               </div>
 
           ) : showOwnerPinReset ? (
             <div>
-              <h2 style={{ fontSize: '1.6rem', marginBottom: '0.25rem', fontFamily: 'var(--font-title)' }}>Reset Owner PIN 🔑</h2>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginBottom: '1.5rem' }}>Verify your details to set a new owner security PIN.</p>
+              <h2 style={{ fontSize: '1.6rem', marginBottom: '0.25rem', fontFamily: 'var(--font-title)' }}>{t('reset_owner_pin_')}</h2>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginBottom: '1.5rem' }}>{t('verify_your_details_')}</p>
 
               <form onSubmit={handleResetOwnerPinSubmit} style={{ textAlign: 'left' }}>
                 {resetOwnerStep === 1 && (
                   <>
                     <div className="form-group">
-                      <label htmlFor="reset-code-input">Farm Access Code *</label>
+                      <label htmlFor="reset-code-input">{t('farm_access_code_')}</label>
                       <input 
                         id="reset-code-input"
                         type="text" 
                         className="form-control" 
                         required 
-                        placeholder="e.g. farm-17852992"
+                        placeholder={t('eg_farm17852992')}
                         value={resetOwnerCodeInput}
                         onChange={e => setResetOwnerCodeInput(e.target.value)}
                         autoComplete="off"
@@ -861,13 +879,13 @@ function App() {
                     </div>
 
                     <div className="form-group" style={{ marginTop: '0.5rem' }}>
-                      <label htmlFor="reset-phone-input">Owner Registered Phone *</label>
+                      <label htmlFor="reset-phone-input">{t('owner_registered_pho')}</label>
                       <input 
                         id="reset-phone-input"
                         type="tel" 
                         className="form-control" 
                         required 
-                        placeholder="e.g. +61 412 345 678"
+                        placeholder={t('eg_61_412_345_678')}
                         value={resetOwnerPhoneInput}
                         onChange={e => setResetOwnerPhoneInput(e.target.value)}
                         autoComplete="off"
@@ -879,18 +897,18 @@ function App() {
                 {resetOwnerStep === 2 && (
                   <>
                     <div style={{ background: 'var(--card-hover)', padding: '0.75rem', borderRadius: '6px', border: '1px solid var(--border)', fontSize: '0.85rem', marginBottom: '1rem' }}>
-                      <strong>Recovery Question:</strong><br />
+                      <strong>{t('recovery_question')}</strong><br />
                       <span style={{ color: 'var(--text-muted)' }}>{resetOwnerQuestionText}</span>
                     </div>
 
                     <div className="form-group">
-                      <label htmlFor="reset-answer-input">Secret Answer *</label>
+                      <label htmlFor="reset-answer-input">{t('secret_answer_')}</label>
                       <input 
                         id="reset-answer-input"
                         type="text" 
                         className="form-control" 
                         required 
-                        placeholder="e.g. Ganga"
+                        placeholder={t('eg_ganga')}
                         value={resetOwnerAnswerInput}
                         onChange={e => setResetOwnerAnswerInput(e.target.value)}
                         autoComplete="off"
@@ -901,14 +919,14 @@ function App() {
 
                 {resetOwnerStep === 3 && (
                   <div className="form-group">
-                    <label htmlFor="reset-pin-input">New 4-Digit Owner PIN *</label>
+                    <label htmlFor="reset-pin-input">{t('new_4digit_owner_pin')}</label>
                     <input 
                       id="reset-pin-input"
                       type="password" 
                       maxLength={4}
                       className="form-control" 
                       required 
-                      placeholder="••••"
+                      placeholder={t('key_45')}
                       style={{ letterSpacing: '0.5em', fontSize: '1.1rem' }}
                       value={resetOwnerNewPinInput}
                       onChange={e => setResetOwnerNewPinInput(e.target.value)}
@@ -918,7 +936,7 @@ function App() {
 
                 {resetOwnerError && (
                   <p style={{ color: 'var(--danger)', fontSize: '0.75rem', marginTop: '0.5rem' }}>
-                    ⚠️ {resetOwnerError}
+                    {t('key_3')}{resetOwnerError}
                   </p>
                 )}
 
@@ -943,25 +961,24 @@ function App() {
                     className="btn btn-secondary" 
                     style={{ width: '100%', padding: '0.5rem', fontSize: '0.8rem' }}
                   >
-                    Back to Log In
-                  </button>
+                    {t('back_to_log_in')}</button>
                 </div>
               </form>
             </div>
           ) : (
             <div>
-              <h2 style={{ fontSize: '1.8rem', marginBottom: '0.25rem', fontFamily: 'var(--font-title)' }}>OurDairy 🐄</h2>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Secure Portal for <strong>{farm.name}</strong></p>
+              <h2 style={{ fontSize: '1.8rem', marginBottom: '0.25rem', fontFamily: 'var(--font-title)' }}>{t('ourdairy_')}</h2>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{t('secure_portal_for')}<strong>{farm.name}</strong></p>
 
               <form onSubmit={handleLogin} style={{ marginTop: '2rem' }}>
                 <div className="form-group" style={{ textAlign: 'left' }}>
-                  <label>Select Role</label>
+                  <label>{t('select_role')}</label>
                   <div className="role-selector-grid">
                     <div 
                       className={`role-select-card ${loginRole === 'owner' ? 'active' : ''}`}
                       onClick={() => { setLoginRole('owner'); setLoginError(''); }}
                     >
-                      <span style={{ fontSize: '1.5rem' }}>👤</span>
+                      <span style={{ fontSize: '1.5rem' }}>{t('key_4')}</span>
                       <h4 style={{ fontWeight: '700', fontSize: '0.9rem' }}>
                         {profiles.find(p => p.role === 'owner')?.fullName || 'Owner'}
                       </h4>
@@ -970,7 +987,7 @@ function App() {
                       className={`role-select-card ${loginRole === 'manager' ? 'active' : ''}`}
                       onClick={() => { setLoginRole('manager'); setLoginError(''); }}
                     >
-                      <span style={{ fontSize: '1.5rem' }}>🧑</span>
+                      <span style={{ fontSize: '1.5rem' }}>{t('key_5')}</span>
                       <h4 style={{ fontWeight: '700', fontSize: '0.9rem' }}>
                         {profiles.find(p => p.role === 'manager')?.fullName || 'Manager'}
                       </h4>
@@ -980,7 +997,7 @@ function App() {
 
                 <div className="form-group" style={{ textAlign: 'left' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
-                    <label htmlFor="pin-input" style={{ marginBottom: 0 }}>Enter Security PIN</label>
+                    <label htmlFor="pin-input" style={{ marginBottom: 0 }}>{t('enter_security_pin')}</label>
                     {loginRole === 'owner' && (
                       <span 
                         onClick={() => {
@@ -989,8 +1006,7 @@ function App() {
                         }} 
                         style={{ fontSize: '0.75rem', color: 'var(--primary)', textDecoration: 'underline', cursor: 'pointer', fontWeight: '600' }}
                       >
-                        Forgot PIN?
-                      </span>
+                        {t('forgot_pin')}</span>
                     )}
                   </div>
                   <div style={{ position: 'relative' }}>
@@ -999,7 +1015,7 @@ function App() {
                       id="pin-input"
                       type="password" 
                       className="form-control" 
-                      placeholder="••••"
+                      placeholder={t('key_46')}
                       maxLength={4}
                       required
                       style={{ paddingLeft: '2.5rem', letterSpacing: '0.5em', fontSize: '1.1rem' }}
@@ -1009,14 +1025,13 @@ function App() {
                   </div>
                   {loginError && (
                     <p style={{ color: 'var(--danger)', fontSize: '0.75rem', marginTop: '0.5rem', display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
-                      ⚠️ {loginError}
+                      {t('key_6')}{loginError}
                     </p>
                   )}
                 </div>
 
                 <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1.25rem', padding: '0.8rem' }}>
-                  Sign In
-                </button>
+                  {t('sign_in')}</button>
                 
                 <div style={{ marginTop: '0.75rem' }}>
                   <button 
@@ -1025,8 +1040,7 @@ function App() {
                     className="btn btn-secondary" 
                     style={{ width: '100%', padding: '0.5rem', fontSize: '0.8rem' }}
                   >
-                    ← Switch Farm
-                  </button>
+                    {t('_switch_farm')}</button>
                 </div>
 
 
@@ -1044,12 +1058,12 @@ function App() {
       {/* HEADER */}
       <header className="header">
         <div className="logo-container">
-          <div className="logo-icon">🐄</div>
+          <div className="logo-icon">{t('key')}</div>
           <div>
-            <h1 className="logo-text">OurDairy</h1>
+            <h1 className="logo-text">{t('ourdairy')}</h1>
             <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.25rem' }}>
               <span className="role-badge" style={{ background: 'var(--primary-glow)', color: 'var(--primary)', border: '1px solid rgba(46, 125, 50, 0.2)', fontSize: '0.7rem' }}>
-                🏠 {farm.name}
+                {t('key_7')}{farm.name}
               </span>
             </div>
           </div>
@@ -1061,32 +1075,27 @@ function App() {
               onClick={() => setActiveTab('dashboard')} 
               className={`role-btn ${activeTab === 'dashboard' ? 'active' : ''}`}
             >
-              Dashboard
-            </button>
+              {t('dashboard')}</button>
             <button 
               onClick={() => setActiveTab('cattle')} 
               className={`role-btn ${activeTab === 'cattle' ? 'active' : ''}`}
             >
-              Cattle ({cattle.length})
-            </button>
+              {t('cattle_')}{cattle.length}{t('key_8')}</button>
             <button 
               onClick={() => setActiveTab('milk')} 
               className={`role-btn ${activeTab === 'milk' ? 'active' : ''}`}
             >
-              Milk Logs
-            </button>
+              {t('milk_logs')}</button>
             <button 
               onClick={() => setActiveTab('financials')} 
               className={`role-btn ${activeTab === 'financials' ? 'active' : ''}`}
             >
-              Cash Ledger
-            </button>
+              {t('cash_ledger')}</button>
             <button 
               onClick={() => setActiveTab('health')} 
               className={`role-btn ${activeTab === 'health' ? 'active' : ''}`}
             >
-              Vaccines ({pendingHealthTasks.length})
-            </button>
+              {t('vaccines_')}{pendingHealthTasks.length}{t('key_9')}</button>
           </div>
 
           {/* User profile identifier */}
@@ -1110,7 +1119,7 @@ function App() {
             onClick={handleLogout}
             className="btn btn-secondary" 
             style={{ padding: '0.5rem', width: '38px', height: '38px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-            title="Sign Out"
+            title={t('sign_out')}
           >
             <LogOut size={16} />
           </button>
@@ -1128,13 +1137,13 @@ function App() {
             {/* Greetings & Roles */}
             {activeProfile.role === 'manager' ? (
               <div style={{ marginBottom: '2rem' }}>
-                <h2 style={{ fontSize: '1.8rem', color: 'var(--text)' }}>{getGreeting()}, {activeProfile.fullName.split(' ')[0]}! 👋</h2>
-                <p style={{ color: 'var(--text-muted)' }}>A companion to track your dairy activities in real time.</p>
+                <h2 style={{ fontSize: '1.8rem', color: 'var(--text)' }}>{getGreeting()}{t('key_10')}{activeProfile.fullName.split(' ')[0]}{t('_')}</h2>
+                <p style={{ color: 'var(--text-muted)' }}>{t('a_companion_to_track')}</p>
               </div>
             ) : (
               <div style={{ marginBottom: '2rem' }}>
-                <h2 style={{ fontSize: '1.8rem', color: 'var(--text)' }}>Owner Dashboard</h2>
-                <p style={{ color: 'var(--text-muted)' }}>Overview of {farm.name} Operations & Net Margin.</p>
+                <h2 style={{ fontSize: '1.8rem', color: 'var(--text)' }}>{t('owner_dashboard')}</h2>
+                <p style={{ color: 'var(--text-muted)' }}>{t('overview_of')}{farm.name} {t('operations_net_margi')}</p>
               </div>
             )}
 
@@ -1142,24 +1151,24 @@ function App() {
             {activeProfile.role === 'manager' && (
               <section className="manager-actions">
                 <div className="action-card" onClick={() => { setMilkLogType('individual'); setShowLogMilkModal(true); }}>
-                  <div className="action-icon">🐄</div>
-                  <h4 style={{ fontWeight: '700' }}>Individual Milk</h4>
-                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Log by ear tag</p>
+                  <div className="action-icon">{t('key')}</div>
+                  <h4 style={{ fontWeight: '700' }}>{t('individual_milk')}</h4>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('log_by_ear_tag')}</p>
                 </div>
                 <div className="action-card" onClick={() => { setMilkLogType('bulk'); setShowLogMilkModal(true); }}>
-                  <div className="action-icon">🥛</div>
-                  <h4 style={{ fontWeight: '700' }}>Bulk Milk Yield</h4>
-                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Log herd session</p>
+                  <div className="action-icon">{t('key_11')}</div>
+                  <h4 style={{ fontWeight: '700' }}>{t('bulk_milk_yield')}</h4>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('log_herd_session')}</p>
                 </div>
                 <div className="action-card" onClick={() => setShowAddTxModal(true)}>
-                  <div className="action-icon">💸</div>
-                  <h4 style={{ fontWeight: '700' }}>Log Expense</h4>
-                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Feed, medicine bills</p>
+                  <div className="action-icon">{t('key_12')}</div>
+                  <h4 style={{ fontWeight: '700' }}>{t('log_expense')}</h4>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('feed_medicine_bills')}</p>
                 </div>
                 <div className="action-card" onClick={() => setShowAddCattleModal(true)}>
-                  <div className="action-icon">➕</div>
-                  <h4 style={{ fontWeight: '700' }}>Add Cattle</h4>
-                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Profile new cow</p>
+                  <div className="action-icon">{t('key_13')}</div>
+                  <h4 style={{ fontWeight: '700' }}>{t('add_cattle')}</h4>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('profile_new_cow')}</p>
                 </div>
               </section>
             )}
@@ -1168,15 +1177,13 @@ function App() {
             {activeProfile.role === 'owner' && yieldAlerts.length > 0 && (
               <div className="card" style={{ borderLeft: '5px solid var(--danger)', marginBottom: '1.5rem', background: 'rgba(239, 68, 68, 0.04)', borderColor: 'var(--danger)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
-                  <span style={{ fontSize: '1.5rem' }}>⚠️</span>
-                  <h3 style={{ fontSize: '1.1rem', color: 'var(--danger)', fontWeight: '700' }}>Nitara Precision Sickness Warnings</h3>
+                  <span style={{ fontSize: '1.5rem' }}>{t('key_14')}</span>
+                  <h3 style={{ fontSize: '1.1rem', color: 'var(--danger)', fontWeight: '700' }}>{t('nitara_precision_sic')}</h3>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                   {yieldAlerts.map(alert => (
                     <p key={alert.cowId} style={{ fontSize: '0.85rem', color: 'var(--text)' }}>
-                      Cattle <strong>{alert.name} ({alert.tag})</strong> yield dropped to <strong style={{ color: 'var(--danger)' }}>{alert.latest}L</strong> (Average: {alert.average}L). 
-                      This represents a <strong style={{ color: 'var(--danger)' }}>{alert.drop}% drop</strong>. Recommend checking for Mastitis, fever, or udder block.
-                    </p>
+                      {t('cattle')}<strong>{alert.name} {t('key_15')}{alert.tag}{t('key_16')}</strong> {t('yield_dropped_to')}<strong style={{ color: 'var(--danger)' }}>{alert.latest}{t('l')}</strong> {t('average')}{alert.average}{t('l_this_represents_a')}<strong style={{ color: 'var(--danger)' }}>{alert.drop}{t('_drop')}</strong>{t('_recommend_checking_')}</p>
                   ))}
                 </div>
               </div>
@@ -1187,55 +1194,52 @@ function App() {
               {activeProfile.role === 'owner' && (
                 <div className="card">
                   <div className="card-header">
-                    <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontWeight: '700' }}>NET MARGIN</span>
+                    <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontWeight: '700' }}>{t('net_margin')}</span>
                     <DollarSign size={20} color="var(--primary)" />
                   </div>
                   <div className="stat-value" style={{ color: netCashFlow >= 0 ? 'var(--success)' : 'var(--danger)' }}>
                     {netCashFlow >= 0 ? '₹' : '-₹'}{Math.abs(netCashFlow)}
                   </div>
                   <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
-                    Income: <span style={{ color: 'var(--success)', fontWeight: '600' }}>₹{totalIncome}</span> | Bills: <span style={{ color: 'var(--danger)', fontWeight: '600' }}>₹{totalExpense}</span>
+                    {t('income')}<span style={{ color: 'var(--success)', fontWeight: '600' }}>{t('key_17')}{totalIncome}</span> {t('_bills')}<span style={{ color: 'var(--danger)', fontWeight: '600' }}>{t('key_18')}{totalExpense}</span>
                   </p>
                 </div>
               )}
 
               <div className="card">
                 <div className="card-header">
-                  <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontWeight: '700' }}>AVG DAILY YIELD</span>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontWeight: '700' }}>{t('avg_daily_yield')}</span>
                   <TrendingUp size={20} color="var(--primary)" />
                 </div>
                 <div className="stat-value">
-                  {averageDailyYield} <span className="stat-unit">Liters</span>
+                  {averageDailyYield} <span className="stat-unit">{t('liters')}</span>
                 </div>
                 <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
-                  From {totalMilkingCattle} active milking cattle
-                </p>
+                  {t('from')}{totalMilkingCattle} {t('active_milking_cattl')}</p>
               </div>
 
               <div className="card">
                 <div className="card-header">
-                  <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontWeight: '700' }}>HERD SIZE</span>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontWeight: '700' }}>{t('herd_size')}</span>
                   <Activity size={20} color="var(--secondary)" />
                 </div>
                 <div className="stat-value">
-                  {cattle.length} <span className="stat-unit">Heads</span>
+                  {cattle.length} <span className="stat-unit">{t('heads')}</span>
                 </div>
                 <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
-                  {cattle.filter(c => c.status === 'pregnant').length} pregnant &bull; {cattle.filter(c => c.status === 'dry').length} dry
-                </p>
+                  {cattle.filter(c => c.status === 'pregnant').length} {t('pregnant_bull')}{cattle.filter(c => c.status === 'dry').length} {t('dry')}</p>
               </div>
 
               <div className="card">
                 <div className="card-header">
-                  <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontWeight: '700' }}>VACCINES DUE</span>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontWeight: '700' }}>{t('vaccines_due')}</span>
                   <Calendar size={20} color="var(--accent)" />
                 </div>
                 <div className="stat-value" style={{ color: 'var(--accent)' }}>
-                  {pendingHealthTasks.length} <span className="stat-unit">Alerts</span>
+                  {pendingHealthTasks.length} <span className="stat-unit">{t('alerts')}</span>
                 </div>
                 <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
-                  Check Vaccine checklist tab
-                </p>
+                  {t('check_vaccine_checkl')}</p>
               </div>
             </div>
 
@@ -1246,7 +1250,7 @@ function App() {
               {activeProfile.role === 'owner' ? (
                 <div className="card col-span-8">
                   <div className="card-header">
-                    <h3 className="card-title"><TrendingUp size={18} /> Milk Production Trend (Past 5 Days)</h3>
+                    <h3 className="card-title"><TrendingUp size={18} /> {t('milk_production_tren')}</h3>
                   </div>
                   <div className="chart-container">
                     <svg width="100%" height="100%" viewBox="0 0 600 220" preserveAspectRatio="none">
@@ -1257,10 +1261,10 @@ function App() {
                       <line x1="50" y1="180" x2="560" y2="180" stroke="var(--border)" strokeWidth="1.5" />
 
                       {/* Y-axis labels */}
-                      <text x="10" y="34" className="chart-axis-text" style={{ textAnchor: 'start' }}>40 L</text>
-                      <text x="10" y="84" className="chart-axis-text" style={{ textAnchor: 'start' }}>20 L</text>
-                      <text x="10" y="134" className="chart-axis-text" style={{ textAnchor: 'start' }}>10 L</text>
-                      <text x="10" y="184" className="chart-axis-text" style={{ textAnchor: 'start' }}>0 L</text>
+                      <text x="10" y="34" className="chart-axis-text" style={{ textAnchor: 'start' }}>{t('40_l')}</text>
+                      <text x="10" y="84" className="chart-axis-text" style={{ textAnchor: 'start' }}>{t('20_l')}</text>
+                      <text x="10" y="134" className="chart-axis-text" style={{ textAnchor: 'start' }}>{t('10_l')}</text>
+                      <text x="10" y="184" className="chart-axis-text" style={{ textAnchor: 'start' }}>{t('0_l')}</text>
 
                       {/* Bars mapping yield */}
                       {uniqueDates.map((dateStr, idx) => {
@@ -1302,8 +1306,7 @@ function App() {
                               y={172 - morningHeight - eveningHeight} 
                               style={{ fill: 'var(--text)', fontSize: '11px', fontWeight: '700', textAnchor: 'middle' }}
                             >
-                              {totalLit.toFixed(1)}L
-                            </text>
+                              {totalLit.toFixed(1)}{t('l')}</text>
                             {/* X-axis date labels */}
                             <text 
                               x={xPos + 18} 
@@ -1311,7 +1314,7 @@ function App() {
                               className="chart-axis-text"
                               style={{ textAnchor: 'middle', fontWeight: '600' }}
                             >
-                              {dateStr.split('-')[2]}/{dateStr.split('-')[1]}
+                              {dateStr.split('-')[2]}{t('key_19')}{dateStr.split('-')[1]}
                             </text>
                           </g>
                         );
@@ -1321,28 +1324,24 @@ function App() {
                   <div style={{ display: 'flex', gap: '1.5rem', justifyContent: 'center', marginTop: '1.5rem', fontSize: '0.8rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                       <span style={{ display: 'inline-block', width: '12px', height: '12px', background: 'var(--primary)', borderRadius: '3px' }}></span>
-                      Morning Yield
-                    </div>
+                      {t('morning_yield')}</div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                       <span style={{ display: 'inline-block', width: '12px', height: '12px', background: 'var(--secondary)', borderRadius: '3px' }}></span>
-                      Evening Yield
-                    </div>
+                      {t('evening_yield')}</div>
                   </div>
                 </div>
               ) : (
                 /* Manager Task Checklist on Dashboard */
                 <div className="card col-span-8">
                   <div className="card-header">
-                    <h3 className="card-title"><Calendar size={18} /> Today's Action Checklist</h3>
+                    <h3 className="card-title"><Calendar size={18} /> {t('todays_action_checkl')}</h3>
                     <span className="role-badge" style={{ background: 'var(--accent-glow)', color: 'var(--accent)', border: 'none' }}>
-                      {pendingHealthTasks.length} pending
-                    </span>
+                      {pendingHealthTasks.length} {t('pending')}</span>
                   </div>
                   
                   {pendingHealthTasks.length === 0 ? (
                     <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '3rem' }}>
-                      🎉 No schedules or vaccines for today. Good job!
-                    </p>
+                      {t('_no_schedules_or_vac')}</p>
                   ) : (
                     <div>
                       {pendingHealthTasks.map(task => (
@@ -1350,11 +1349,11 @@ function App() {
                           <div>
                             <p style={{ fontWeight: '700', fontSize: '0.95rem' }}>{task.title}</p>
                             <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>
-                              Cattle: <strong>{task.cattleName} ({task.cattleTag})</strong>
+                              {t('cattle_20')}<strong>{task.cattleName} {t('key_21')}{task.cattleTag}{t('key_22')}</strong>
                             </p>
                             {task.nextDueDate && (
                               <p style={{ fontSize: '0.75rem', color: 'var(--accent)', fontWeight: '600', marginTop: '0.25rem' }}>
-                                Due Date: {task.nextDueDate}
+                                {t('due_date')}{task.nextDueDate}
                               </p>
                             )}
                           </div>
@@ -1363,8 +1362,7 @@ function App() {
                             style={{ borderColor: 'var(--success)', color: 'var(--success)', padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
                             onClick={() => handleCompleteVaccine(task.id)}
                           >
-                            <Check size={14} /> Mark Done
-                          </button>
+                            <Check size={14} /> {t('mark_done')}</button>
                         </div>
                       ))}
                     </div>
@@ -1375,35 +1373,34 @@ function App() {
               {/* Sidebar Info/Audit panel */}
               <div className="card col-span-4">
                 <div className="card-header">
-                  <h3 className="card-title"><FileText size={18} /> Recent Field Updates</h3>
+                  <h3 className="card-title"><FileText size={18} /> {t('recent_field_updates')}</h3>
                 </div>
                 <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>
-                  Logs collected from manager {profiles.find(p => p.role === 'manager')?.fullName.split(' ')[0] || 'Raju'}'s mobile device:
-                </p>
+                  {t('logs_collected_from_')}{profiles.find(p => p.role === 'manager')?.fullName.split(' ')[0] || 'Raju'}{t('s_mobile_device')}</p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                   {milkLogs.slice(0, 3).map(l => (
                     <div key={l.id} style={{ display: 'flex', gap: '0.75rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem' }}>
-                      <span style={{ fontSize: '1.25rem' }}>🥛</span>
+                      <span style={{ fontSize: '1.25rem' }}>{t('key_23')}</span>
                       <div>
                         <p style={{ fontSize: '0.85rem', fontWeight: '600' }}>
-                          Milk logged by <strong>{l.recordedBy}</strong>
+                          {t('milk_logged_by')}<strong>{l.recordedBy}</strong>
                         </p>
                         <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>
-                          {l.cattleName ? `${l.cattleName}: ` : 'Bulk Session: '}{l.quantityLiters} Liters &bull; {l.logDate}
+                          {l.cattleName ? `${l.cattleName}: ` : 'Bulk Session: '}{l.quantityLiters} {t('liters_bull')}{l.logDate}
                         </p>
                       </div>
                     </div>
                   ))}
                   
-                  {transactions.slice(0, 2).map(t => (
-                    <div key={t.id} style={{ display: 'flex', gap: '0.75rem' }}>
-                      <span style={{ fontSize: '1.25rem' }}>💸</span>
+                  {transactions.slice(0, 2).map(tx => (
+                    <div key={tx.id} style={{ display: 'flex', gap: '0.75rem' }}>
+                      <span style={{ fontSize: '1.25rem' }}>{t('key_24')}</span>
                       <div>
                         <p style={{ fontSize: '0.85rem', fontWeight: '600' }}>
-                          {t.category} logged by <strong>{t.recordedBy}</strong>
+                          {tx.category} {t('logged_by')}<strong>{tx.recordedBy}</strong>
                         </p>
                         <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>
-                          ₹{t.amount} via {t.paymentMethod.toUpperCase()} &bull; {t.transactionDate}
+                          {t('key_25')}{tx.amount} {t('via')}{tx.paymentMethod.toUpperCase()} {t('bull')}{tx.transactionDate}
                         </p>
                       </div>
                     </div>
@@ -1415,11 +1412,10 @@ function App() {
               {activeProfile.role === 'owner' && (
                 <div className="card col-span-4">
                   <div className="card-header">
-                    <h3 className="card-title">⚙️ Farm Profile Settings</h3>
+                    <h3 className="card-title">{t('_farm_profile_settin')}</h3>
                   </div>
                   <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
-                    Configure the tenant farm details displayed in the app header and login screens.
-                  </p>
+                    {t('configure_the_tenant')}</p>
                   <form onSubmit={async (e) => {
                     e.preventDefault();
                     const nameInput = (e.currentTarget.elements.namedItem('farm-name-edit') as HTMLInputElement).value.trim();
@@ -1433,18 +1429,18 @@ function App() {
                       await db.updateFarm(nameInput, locInput);
                       await db.updateProfiles(oName, oPin, mName, mPin);
                       await refreshData(farm.id);
-                      alert('Farm Profile & Staff Credentials updated successfully!');
+                      alert(t('farm_profile_staff_c'));
                     }
                   }}>
                     <div className="form-group" style={{ textAlign: 'left', background: 'var(--card-hover)', padding: '0.75rem', borderRadius: '4px', marginBottom: '1rem', border: '1px solid var(--border)' }}>
-                      <label style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--primary)' }}>Farm Access Code (Share with Staff)</label>
+                      <label style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--primary)' }}>{t('farm_access_code_sha')}</label>
                       <code style={{ fontSize: '0.95rem', fontWeight: '700', display: 'block', marginTop: '0.2rem', wordBreak: 'break-all', color: 'var(--text)' }}>
                         {farm.id}
                       </code>
                     </div>
 
                     <div className="form-group" style={{ textAlign: 'left' }}>
-                      <label style={{ fontSize: '0.75rem' }}>Farm Name</label>
+                      <label style={{ fontSize: '0.75rem' }}>{t('farm_name')}</label>
                       <input 
                         id="farm-name-edit"
                         type="text" 
@@ -1455,7 +1451,7 @@ function App() {
                       />
                     </div>
                     <div className="form-group" style={{ textAlign: 'left', marginTop: '0.5rem' }}>
-                      <label style={{ fontSize: '0.75rem' }}>Location</label>
+                      <label style={{ fontSize: '0.75rem' }}>{t('location')}</label>
                       <input 
                         id="farm-loc-edit"
                         type="text" 
@@ -1466,10 +1462,10 @@ function App() {
                     </div>
                     
                     <div style={{ borderTop: '1px dashed var(--border)', marginTop: '1rem', paddingTop: '1rem' }}>
-                      <h4 style={{ fontSize: '0.8rem', fontWeight: '700', marginBottom: '0.5rem' }}>Staff Directory (Farm Linked)</h4>
+                      <h4 style={{ fontSize: '0.8rem', fontWeight: '700', marginBottom: '0.5rem' }}>{t('staff_directory_farm')}</h4>
                       
                       <div className="form-group" style={{ textAlign: 'left' }}>
-                        <label style={{ fontSize: '0.75rem' }}>Owner Full Name</label>
+                        <label style={{ fontSize: '0.75rem' }}>{t('owner_full_name')}</label>
                         <input 
                           id="owner-name-edit"
                           type="text" 
@@ -1481,7 +1477,7 @@ function App() {
                       </div>
                       
                       <div className="form-group" style={{ textAlign: 'left', marginTop: '0.5rem' }}>
-                        <label style={{ fontSize: '0.75rem' }}>Owner Login PIN</label>
+                        <label style={{ fontSize: '0.75rem' }}>{t('owner_login_pin')}</label>
                         <input 
                           id="owner-pin-edit"
                           type="text" 
@@ -1494,7 +1490,7 @@ function App() {
                       </div>
                       
                       <div className="form-group" style={{ textAlign: 'left', marginTop: '0.5rem' }}>
-                        <label style={{ fontSize: '0.75rem' }}>Manager Name</label>
+                        <label style={{ fontSize: '0.75rem' }}>{t('manager_name')}</label>
                         <input 
                           id="manager-name-edit"
                           type="text" 
@@ -1506,7 +1502,7 @@ function App() {
                       </div>
 
                       <div className="form-group" style={{ textAlign: 'left', marginTop: '0.5rem' }}>
-                        <label style={{ fontSize: '0.75rem' }}>Manager Login PIN</label>
+                        <label style={{ fontSize: '0.75rem' }}>{t('manager_login_pin')}</label>
                         <input 
                           id="manager-pin-edit"
                           type="text" 
@@ -1520,8 +1516,7 @@ function App() {
                     </div>
 
                     <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1rem', padding: '0.5rem', fontSize: '0.8rem' }}>
-                      Save Farm Profile
-                    </button>
+                      {t('save_farm_profile')}</button>
                   </form>
                 </div>
               )}
@@ -1537,26 +1532,24 @@ function App() {
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
               <div>
-                <h2 style={{ fontSize: '1.5rem' }}>Daily Milk Logs</h2>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>A complete history of individual and bulk milk yields.</p>
+                <h2 style={{ fontSize: '1.5rem' }}>{t('daily_milk_logs')}</h2>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>{t('a_complete_history_o')}</p>
               </div>
               {activeProfile.role === 'manager' && (
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                   <button className="btn btn-primary" style={{ padding: '0.6rem 1rem' }} onClick={() => { setMilkLogType('individual'); setShowLogMilkModal(true); }}>
-                    🐄 Individual Log
-                  </button>
+                    {t('_individual_log')}</button>
                   <button className="btn btn-secondary" style={{ padding: '0.6rem 1rem' }} onClick={() => { setMilkLogType('bulk'); setShowLogMilkModal(true); }}>
-                    🥛 Bulk Log
-                  </button>
+                    {t('_bulk_log')}</button>
                 </div>
               )}
             </div>
 
             {milkLogs.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '4rem 1rem', background: 'var(--bg-card)', borderRadius: 'var(--radius-md)', border: '1px dashed var(--border)' }}>
-                <p style={{ fontSize: '3rem', margin: '0 0 1rem 0' }}>🥛</p>
-                <h3 style={{ fontSize: '1.2rem', color: 'var(--text)', marginBottom: '0.5rem' }}>No Milk Logs Yet</h3>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Start logging milk yields to track production over time.</p>
+                <p style={{ fontSize: '3rem', margin: '0 0 1rem 0' }}>{t('key_26')}</p>
+                <h3 style={{ fontSize: '1.2rem', color: 'var(--text)', marginBottom: '0.5rem' }}>{t('no_milk_logs_yet')}</h3>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>{t('start_logging_milk_y')}</p>
               </div>
             ) : (
               <div className="card">
@@ -1569,16 +1562,15 @@ function App() {
                       <div>
                         <h4 style={{ fontWeight: '600', fontSize: '1rem' }}>{log.cattleName ? `${log.cattleName} (${log.cattleTag})` : 'Bulk Herd Session'}</h4>
                         <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-                          {new Date(log.logDate).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })} &bull; {log.session.charAt(0).toUpperCase() + log.session.slice(1)} &bull; By {log.recordedBy.split(' ')[0]}
+                          {new Date(log.logDate).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })} {t('bull')}{log.session.charAt(0).toUpperCase() + log.session.slice(1)} {t('bull_by')}{log.recordedBy.split(' ')[0]}
                         </p>
                       </div>
                     </div>
                     <div style={{ textAlign: 'right' }}>
-                      <span style={{ fontSize: '1.2rem', fontWeight: '700', color: 'var(--text)' }}>{log.quantityLiters}L</span>
+                      <span style={{ fontSize: '1.2rem', fontWeight: '700', color: 'var(--text)' }}>{log.quantityLiters}{t('l')}</span>
                       {(log.fatPercentage || log.snfPercentage) && (
                         <p style={{ fontSize: '0.75rem', color: 'var(--info)', marginTop: '0.2rem' }}>
-                          Fat: {log.fatPercentage || '-'}% &bull; SNF: {log.snfPercentage || '-'}%
-                        </p>
+                          {t('fat')}{log.fatPercentage || '-'}{t('_bull_snf')}{log.snfPercentage || '-'}{t('key_27')}</p>
                       )}
                     </div>
                   </div>
@@ -1595,8 +1587,8 @@ function App() {
           <div>
             <div style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
               <div>
-                <h2 style={{ fontSize: '1.5rem' }}>Cattle & Feed Management</h2>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Track your herd, breeding, and manage feed inventory.</p>
+                <h2 style={{ fontSize: '1.5rem' }}>{t('cattle_feed_manageme')}</h2>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>{t('track_your_herd_bree')}</p>
               </div>
               <div className="tab-pill-container" style={{ display: 'flex', background: 'var(--bg-card)', padding: '0.25rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>
                 <button 
@@ -1604,15 +1596,13 @@ function App() {
                   onClick={() => setCattleSubTab('herd')}
                   style={{ padding: '0.4rem 1rem', fontSize: '0.85rem', borderRadius: 'var(--radius-sm)', border: 'none', background: cattleSubTab === 'herd' ? 'var(--primary)' : 'transparent', color: cattleSubTab === 'herd' ? 'white' : 'var(--text)' }}
                 >
-                  Herd Profiles
-                </button>
+                  {t('herd_profiles')}</button>
                 <button 
                   className={`role-btn ${cattleSubTab === 'feed' ? 'active' : ''}`} 
                   onClick={() => setCattleSubTab('feed')}
                   style={{ padding: '0.4rem 1rem', fontSize: '0.85rem', borderRadius: 'var(--radius-sm)', border: 'none', background: cattleSubTab === 'feed' ? 'var(--primary)' : 'transparent', color: cattleSubTab === 'feed' ? 'white' : 'var(--text)' }}
                 >
-                  Feed Inventory
-                </button>
+                  {t('feed_inventory')}</button>
               </div>
             </div>
 
@@ -1625,7 +1615,7 @@ function App() {
                       <Search size={16} style={{ position: 'absolute', left: '12px', top: '12px', color: 'var(--text-muted)' }} />
                       <input
                         type="text"
-                        placeholder="Search Tag or Cow Name..."
+                        placeholder={t('search_tag_or_cow_na')}
                         className="form-control"
                         style={{ paddingLeft: '2.5rem' }}
                         value={cattleSearch}
@@ -1639,58 +1629,56 @@ function App() {
                       value={cattleFilterStatus}
                       onChange={e => setCattleFilterStatus(e.target.value)}
                     >
-                      <option value="all">All Status</option>
-                      <option value="milking">Milking</option>
-                      <option value="dry">Dry</option>
-                      <option value="pregnant">Pregnant</option>
-                      <option value="heifer">Heifer</option>
-                      <option value="calf">Calf</option>
+                      <option value="all">{t('all_status')}</option>
+                      <option value="milking">{t('milking')}</option>
+                      <option value="dry">{t('dry_28')}</option>
+                      <option value="pregnant">{t('pregnant')}</option>
+                      <option value="heifer">{t('heifer')}</option>
+                      <option value="calf">{t('calf')}</option>
                     </select>
                   </div>
                   
                   <button onClick={() => setShowAddCattleModal(true)} className="btn btn-primary">
-                    <Plus size={16} /> Profile New Cow
-                  </button>
+                    <Plus size={16} /> {t('profile_new_cow_29')}</button>
                 </div>
 
                 {/* Cattle Cards */}
                 {filteredCattle.length === 0 ? (
-                  <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '3rem' }}>No cattle profiles match filters.</p>
+                  <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '3rem' }}>{t('no_cattle_profiles_m')}</p>
                 ) : (
                   <div className="cattle-grid">
                     {filteredCattle.map(cow => (
                       <div key={cow.id} className="cattle-card" onClick={() => setSelectedCowProfileId(cow.id)} style={{ cursor: 'pointer' }}>
                         <div>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                            <div className="cattle-avatar">🐄</div>
+                            <div className="cattle-avatar">{t('key')}</div>
                             <span className={`status-badge ${cow.status}`}>{cow.status}</span>
                           </div>
                           
                           <h3 style={{ fontSize: '1.25rem', fontWeight: '700' }}>{cow.name || 'Unnamed Cow'}</h3>
                           <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
-                            Ear Tag: <strong style={{ color: 'var(--text)' }}>{cow.tagNumber}</strong>
+                            {t('ear_tag')}<strong style={{ color: 'var(--text)' }}>{cow.tagNumber}</strong>
                           </p>
                           
                           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.8rem', margin: '0.75rem 0', padding: '0.75rem 0', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)' }}>
                             <div>
-                              <span style={{ color: 'var(--text-muted)' }}>Breed:</span>
+                              <span style={{ color: 'var(--text-muted)' }}>{t('breed')}</span>
                               <p style={{ fontWeight: '700', marginTop: '0.1rem' }}>{cow.breed}</p>
                             </div>
                             <div>
-                              <span style={{ color: 'var(--text-muted)' }}>Cost Value:</span>
-                              <p style={{ fontWeight: '700', marginTop: '0.1rem' }}>₹{cow.purchaseCost || '—'}</p>
+                              <span style={{ color: 'var(--text-muted)' }}>{t('cost_value')}</span>
+                              <p style={{ fontWeight: '700', marginTop: '0.1rem' }}>{t('key_30')}{cow.purchaseCost || '—'}</p>
                             </div>
                           </div>
                           
                           {cow.notes && (
                             <p style={{ fontSize: '0.75rem', fontStyle: 'italic', color: 'var(--text-muted)', lineHeight: '1.4' }}>
-                              &ldquo;{cow.notes}&rdquo;
-                            </p>
+                              {t('ldquo')}{cow.notes}{t('rdquo')}</p>
                           )}
 
                           {/* Nitara Feed Curve Recommendation */}
                           <div style={{ marginTop: '0.75rem', padding: '0.5rem 0.75rem', background: 'var(--primary-glow)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(46, 125, 50, 0.1)', fontSize: '0.75rem' }}>
-                            <span style={{ fontWeight: '700', color: 'var(--primary)' }}>🌾 Nitara Feed Curve Tip:</span>
+                            <span style={{ fontWeight: '700', color: 'var(--primary)' }}>{t('_nitara_feed_curve_t')}</span>
                             <p style={{ color: 'var(--text)', marginTop: '0.15rem', fontStyle: 'italic' }}>
                               {cow.status === 'milking' && "Peak milking ration: Suggest 5kg Sudarshan concentrate + 25kg green fodder + calcium."}
                               {cow.status === 'pregnant' && "Gestating ration: Add 1.5kg extra dry fodder + mineral mix."}
@@ -1722,15 +1710,14 @@ function App() {
                               setShowAddCattleModal(true);
                             }}
                           >
-                            <Edit size={14} /> Edit
-                          </button>
+                            <Edit size={14} /> {t('edit')}</button>
                           {(activeProfile.role === 'owner' || activeProfile.role === 'manager') && (
                             <button 
                               className="btn btn-danger" 
                               style={{ padding: '0.4rem 0.6rem' }}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                if (confirm('Delete cow profile permanently?')) {
+                                if (confirm(t('delete_cow_profile_p'))) {
                                   db.deleteCattle(cow.id);
                                   refreshData();
                                 }
@@ -1750,17 +1737,16 @@ function App() {
             {cattleSubTab === 'feed' && (
               <>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                  <h3 style={{ fontSize: '1.2rem' }}>Current Stock Levels</h3>
+                  <h3 style={{ fontSize: '1.2rem' }}>{t('current_stock_levels')}</h3>
                   <button className="btn btn-primary" onClick={() => {
                     setInventoryForm({ id: '', category: 'concentrate', name: '', quantity: '', unit: 'kg', lowStockThreshold: '50' });
                     setShowAddInventoryModal(true);
                   }}>
-                    <Plus size={16} /> Add Feed Delivery
-                  </button>
+                    <Plus size={16} /> {t('add_feed_delivery')}</button>
                 </div>
                 
                 {inventoryItems.length === 0 ? (
-                  <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '3rem' }}>No feed inventory tracked yet. Add your first delivery!</p>
+                  <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '3rem' }}>{t('no_feed_inventory_tr')}</p>
                 ) : (
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
                     {inventoryItems.map(item => (
@@ -1772,8 +1758,7 @@ function App() {
                           </div>
                           {item.quantity <= item.lowStockThreshold && (
                             <span style={{ background: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger)', padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold' }}>
-                              LOW STOCK
-                            </span>
+                              {t('low_stock')}</span>
                           )}
                         </div>
                         
@@ -1791,8 +1776,7 @@ function App() {
                               setShowConsumeInventoryModal(true);
                             }}
                           >
-                            <Droplet size={14} style={{ marginRight: '0.2rem' }} /> Consume
-                          </button>
+                            <Droplet size={14} style={{ marginRight: '0.2rem' }} /> {t('consume')}</button>
                           <button 
                             className="btn btn-secondary" 
                             style={{ padding: '0.4rem 0.6rem' }}
@@ -1826,7 +1810,7 @@ function App() {
         {activeTab === 'financials' && (
           <div>
             <div style={{ marginBottom: '1.5rem' }}>
-              <h2 style={{ fontSize: '1.5rem' }}>Cash Flow Ledger</h2>
+              <h2 style={{ fontSize: '1.5rem' }}>{t('cash_flow_ledger')}</h2>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
                 {activeProfile.role === 'owner' 
                   ? 'Audit farm financial entries, purchases, and milk revenues.' 
@@ -1841,32 +1825,31 @@ function App() {
                 value={txFilterCategory}
                 onChange={e => setTxFilterCategory(e.target.value)}
               >
-                <option value="all">All Categories</option>
-                <option value="Milk Sales">Milk Sales</option>
-                <option value="Feed Purchase">Feed Purchase</option>
-                <option value="Medicines">Medicines</option>
-                <option value="Salaries">Salaries</option>
-                <option value="Diesel">Diesel</option>
-                <option value="Maintenance">Maintenance</option>
+                <option value="all">{t('all_categories')}</option>
+                <option value="Milk Sales">{t('milk_sales')}</option>
+                <option value="Feed Purchase">{t('feed_purchase')}</option>
+                <option value="Medicines">{t('medicines')}</option>
+                <option value="Salaries">{t('salaries')}</option>
+                <option value="Diesel">{t('diesel')}</option>
+                <option value="Maintenance">{t('maintenance')}</option>
               </select>
 
               <button onClick={() => setShowAddTxModal(true)} className="btn btn-primary">
-                <Plus size={16} /> Record Transaction
-              </button>
+                <Plus size={16} /> {t('record_transaction')}</button>
             </div>
 
             <div className="data-table-container">
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th>Date</th>
-                    <th>Type</th>
-                    <th>Category</th>
-                    <th>Notes / Info</th>
-                    <th>Receipt File</th>
-                    <th>Logged By</th>
-                    <th>Amount</th>
-                    {activeProfile.role === 'owner' && <th>Action</th>}
+                    <th>{t('date')}</th>
+                    <th>{t('type')}</th>
+                    <th>{t('category')}</th>
+                    <th>{t('notes_info')}</th>
+                    <th>{t('receipt_file')}</th>
+                    <th>{t('logged_by_31')}</th>
+                    <th>{t('amount')}</th>
+                    {activeProfile.role === 'owner' && <th>{t('action')}</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -1894,10 +1877,9 @@ function App() {
                             style={{ background: 'var(--primary-glow)', color: 'var(--primary)', cursor: 'pointer', border: 'none' }}
                             onClick={() => setReceiptPreviewUrl(tx.receiptUrl || null)}
                           >
-                            Show Receipt 📄
-                          </button>
+                            {t('show_receipt_')}</button>
                         ) : (
-                          <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>No File</span>
+                          <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{t('no_file')}</span>
                         )}
                       </td>
                       <td>{tx.recordedBy}</td>
@@ -1905,7 +1887,7 @@ function App() {
                         fontWeight: '700', 
                         color: tx.type === 'income' ? 'var(--success)' : 'var(--danger)' 
                       }}>
-                        {tx.type === 'income' ? '+' : '-'}₹{tx.amount}
+                        {tx.type === 'income' ? '+' : '-'}{t('key_32')}{tx.amount}
                       </td>
                       {activeProfile.role === 'owner' && (
                         <td>
@@ -1935,16 +1917,15 @@ function App() {
         {activeTab === 'health' && (
           <div>
             <div style={{ marginBottom: '1.5rem' }}>
-              <h2 style={{ fontSize: '1.5rem' }}>Vaccination & Veterinary Records</h2>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Schedules, deworming calendars, and treatment records.</p>
+              <h2 style={{ fontSize: '1.5rem' }}>{t('vaccination_veterina')}</h2>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>{t('schedules_deworming_')}</p>
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <h3 style={{ fontSize: '1.1rem' }}>All Farm Treatment Schedules</h3>
+              <h3 style={{ fontSize: '1.1rem' }}>{t('all_farm_treatment_s')}</h3>
               {(activeProfile.role === 'owner' || activeProfile.role === 'manager') && (
                 <button onClick={() => setShowAddHealthModal(true)} className="btn btn-primary">
-                  <Plus size={16} /> Schedule Treatment
-                </button>
+                  <Plus size={16} /> {t('schedule_treatment')}</button>
               )}
             </div>
 
@@ -1952,20 +1933,20 @@ function App() {
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th>Animal (Tag)</th>
-                    <th>Type</th>
-                    <th>Description</th>
-                    <th>Administered</th>
-                    <th>Next Due</th>
-                    <th>Vet Fee</th>
-                    <th>Performed By</th>
-                    <th>Status</th>
+                    <th>{t('animal_tag')}</th>
+                    <th>{t('type')}</th>
+                    <th>{t('description')}</th>
+                    <th>{t('administered')}</th>
+                    <th>{t('next_due')}</th>
+                    <th>{t('vet_fee')}</th>
+                    <th>{t('performed_by')}</th>
+                    <th>{t('status')}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {healthLogs.map(log => (
                     <tr key={log.id}>
-                      <td style={{ fontWeight: '700' }}>{log.cattleName} ({log.cattleTag})</td>
+                      <td style={{ fontWeight: '700' }}>{log.cattleName} {t('key_33')}{log.cattleTag}{t('key_34')}</td>
                       <td>
                         <span className="role-badge" style={{ fontSize: '0.7rem' }}>
                           {log.treatmentType.replace('_', ' ').toUpperCase()}
@@ -1978,7 +1959,7 @@ function App() {
                           {log.nextDueDate || '—'}
                         </span>
                       </td>
-                      <td>₹{log.cost}</td>
+                      <td>{t('key_35')}{log.cost}</td>
                       <td>{log.performedBy || '—'}</td>
                       <td>
                         <span style={{ 
@@ -2009,7 +1990,7 @@ function App() {
           className={`bottom-nav-item ${activeTab === 'dashboard' ? 'active' : ''}`}
         >
           <Activity size={20} />
-          <span>Dash</span>
+          <span>{t('dash')}</span>
         </button>
         
         <button 
@@ -2017,7 +1998,7 @@ function App() {
           className={`bottom-nav-item ${activeTab === 'cattle' ? 'active' : ''}`}
         >
           <Layers size={20} />
-          <span>Cattle</span>
+          <span>{t('cattle')}</span>
         </button>
 
         <button 
@@ -2025,7 +2006,7 @@ function App() {
           className={`bottom-nav-item ${activeTab === 'milk' ? 'active' : ''}`}
         >
           <Droplet size={20} />
-          <span>Milk</span>
+          <span>{t('milk')}</span>
         </button>
         
         <button 
@@ -2033,7 +2014,7 @@ function App() {
           className={`bottom-nav-item ${activeTab === 'financials' ? 'active' : ''}`}
         >
           <DollarSign size={20} />
-          <span>Ledger</span>
+          <span>{t('ledger')}</span>
         </button>
         
         <button 
@@ -2041,7 +2022,7 @@ function App() {
           className={`bottom-nav-item ${activeTab === 'health' ? 'active' : ''}`}
         >
           <Stethoscope size={20} />
-          <span>Vet</span>
+          <span>{t('vet')}</span>
         </button>
       </nav>
 
@@ -2060,11 +2041,11 @@ function App() {
             
             <form onSubmit={handleCattleSubmit}>
               <div className="form-group">
-                <label>Ear Tag Number *</label>
+                <label>{t('ear_tag_number_')}</label>
                 <input 
                   type="text" 
                   className="form-control" 
-                  placeholder="e.g. IN-TG-105" 
+                  placeholder={t('eg_intg105')} 
                   required 
                   value={cattleForm.tagNumber}
                   onChange={e => setCattleForm(prev => ({ ...prev, tagNumber: e.target.value }))}
@@ -2072,11 +2053,11 @@ function App() {
               </div>
 
               <div className="form-group">
-                <label>Cattle Name</label>
+                <label>{t('cattle_name')}</label>
                 <input 
                   type="text" 
                   className="form-control" 
-                  placeholder="e.g. Ganga / Heifer-A"
+                  placeholder={t('eg_ganga_heifera')}
                   value={cattleForm.name}
                   onChange={e => setCattleForm(prev => ({ ...prev, name: e.target.value }))}
                 />
@@ -2084,34 +2065,34 @@ function App() {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div className="form-group">
-                  <label>Breed</label>
+                  <label>{t('breed_36')}</label>
                   <input 
                     type="text" 
                     className="form-control" 
-                    placeholder="e.g. Murrah Buffalo / HF Cross"
+                    placeholder={t('eg_murrah_buffalo_hf')}
                     value={cattleForm.breed}
                     onChange={e => setCattleForm(prev => ({ ...prev, breed: e.target.value }))}
                   />
                 </div>
                 <div className="form-group">
-                  <label>Status</label>
+                  <label>{t('status')}</label>
                   <select 
                     className="form-control"
                     value={cattleForm.status}
                     onChange={e => setCattleForm(prev => ({ ...prev, status: e.target.value as Cattle['status'] }))}
                   >
-                    <option value="milking">Milking</option>
-                    <option value="dry">Dry</option>
-                    <option value="pregnant">Pregnant</option>
-                    <option value="heifer">Heifer</option>
-                    <option value="calf">Calf</option>
+                    <option value="milking">{t('milking')}</option>
+                    <option value="dry">{t('dry_37')}</option>
+                    <option value="pregnant">{t('pregnant')}</option>
+                    <option value="heifer">{t('heifer')}</option>
+                    <option value="calf">{t('calf')}</option>
                   </select>
                 </div>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div className="form-group">
-                  <label>Purchase Date</label>
+                  <label>{t('purchase_date')}</label>
                   <input 
                     type="date" 
                     className="form-control"
@@ -2120,11 +2101,11 @@ function App() {
                   />
                 </div>
                 <div className="form-group">
-                  <label>Purchase Cost (₹)</label>
+                  <label>{t('purchase_cost_')}</label>
                   <input 
                     type="number" 
                     className="form-control" 
-                    placeholder="e.g. 75000"
+                    placeholder={t('eg_75000')}
                     value={cattleForm.purchaseCost}
                     onChange={e => setCattleForm(prev => ({ ...prev, purchaseCost: e.target.value }))}
                   />
@@ -2132,11 +2113,11 @@ function App() {
               </div>
 
               <div className="form-group">
-                <label>Notes / Health Remarks</label>
+                <label>{t('notes_health_remarks')}</label>
                 <textarea 
                   className="form-control" 
                   rows={2} 
-                  placeholder="Feed schedules, feed preference, health history"
+                  placeholder={t('feed_schedules_feed_')}
                   value={cattleForm.notes}
                   onChange={e => setCattleForm(prev => ({ ...prev, notes: e.target.value }))}
                 />
@@ -2144,11 +2125,9 @@ function App() {
 
               <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
                 <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setShowAddCattleModal(false)}>
-                  Cancel
-                </button>
+                  {t('cancel')}</button>
                 <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>
-                  Save Profile
-                </button>
+                  {t('save_profile')}</button>
               </div>
             </form>
           </div>
@@ -2164,15 +2143,15 @@ function App() {
             <button className="btn btn-secondary" style={{ position: 'absolute', right: '1.5rem', top: '1.5rem', padding: '0.25rem' }} onClick={() => setShowLogMilkModal(false)}>
               <X size={18} />
             </button>
-            <h3 style={{ fontSize: '1.4rem', marginBottom: '0.5rem' }}>Log Milk Yield</h3>
+            <h3 style={{ fontSize: '1.4rem', marginBottom: '0.5rem' }}>{t('log_milk_yield')}</h3>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1.5rem' }}>
-              Mode: <strong>{milkLogType === 'individual' ? 'Individual (Per Animal)' : 'Bulk (Herd Session)'}</strong>
+              {t('mode')}<strong>{milkLogType === 'individual' ? 'Individual (Per Animal)' : 'Bulk (Herd Session)'}</strong>
             </p>
 
             <form onSubmit={handleMilkLogSubmit}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div className="form-group">
-                  <label>Date</label>
+                  <label>{t('date')}</label>
                   <input 
                     type="date" 
                     className="form-control" 
@@ -2182,28 +2161,28 @@ function App() {
                   />
                 </div>
                 <div className="form-group">
-                  <label>Session</label>
+                  <label>{t('session')}</label>
                   <select 
                     className="form-control"
                     value={milkLogForm.session}
                     onChange={e => setMilkLogForm(prev => ({ ...prev, session: e.target.value as 'morning' | 'evening' }))}
                   >
-                    <option value="morning">Morning (ఉదయం)</option>
-                    <option value="evening">Evening (సాయంత్రం)</option>
+                    <option value="morning">{t('morning_')}</option>
+                    <option value="evening">{t('evening_')}</option>
                   </select>
                 </div>
               </div>
 
               {milkLogType === 'individual' && (
                 <div className="form-group">
-                  <label>Select Animal (Tag)</label>
+                  <label>{t('select_animal_tag')}</label>
                   <select 
                     className="form-control" 
                     required 
                     value={milkLogForm.cattleId}
                     onChange={e => setMilkLogForm(prev => ({ ...prev, cattleId: e.target.value }))}
                   >
-                    <option value="">-- Select Cattle --</option>
+                    <option value="">{t('_select_cattle_')}</option>
                     {cattle.filter(c => c.status === 'milking').map(c => (
                       <option key={c.id} value={c.id}>
                         {c.name ? `${c.name} (${c.tagNumber})` : c.tagNumber}
@@ -2214,12 +2193,12 @@ function App() {
               )}
 
               <div className="form-group">
-                <label>Yield Quantity (Liters) *</label>
+                <label>{t('yield_quantity_liter')}</label>
                 <input 
                   type="number" 
                   step="0.1" 
                   className="form-control" 
-                  placeholder="e.g. 10.5" 
+                  placeholder={t('eg_105')} 
                   required
                   value={milkLogForm.quantityLiters}
                   onChange={e => setMilkLogForm(prev => ({ ...prev, quantityLiters: e.target.value }))}
@@ -2228,23 +2207,23 @@ function App() {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div className="form-group">
-                  <label>Fat % (Optional)</label>
+                  <label>{t('fat_optional')}</label>
                   <input 
                     type="number" 
                     step="0.1" 
                     className="form-control" 
-                    placeholder="e.g. 7.2"
+                    placeholder={t('eg_72')}
                     value={milkLogForm.fatPercentage}
                     onChange={e => setMilkLogForm(prev => ({ ...prev, fatPercentage: e.target.value }))}
                   />
                 </div>
                 <div className="form-group">
-                  <label>SNF % (Optional)</label>
+                  <label>{t('snf_optional')}</label>
                   <input 
                     type="number" 
                     step="0.1" 
                     className="form-control" 
-                    placeholder="e.g. 9.0"
+                    placeholder={t('eg_90')}
                     value={milkLogForm.snfPercentage}
                     onChange={e => setMilkLogForm(prev => ({ ...prev, snfPercentage: e.target.value }))}
                   />
@@ -2254,23 +2233,23 @@ function App() {
               {/* Rate Chart Inputs (Configurable place by place) */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', borderTop: '1px dashed var(--border)', paddingTop: '1rem', marginTop: '1rem' }}>
                 <div className="form-group">
-                  <label>Price per Fat % (₹)</label>
+                  <label>{t('price_per_fat_')}</label>
                   <input 
                     type="number" 
                     step="0.05" 
                     className="form-control" 
-                    placeholder="e.g. 5.20" 
+                    placeholder={t('eg_520')} 
                     value={fatPriceInput}
                     onChange={e => setFatPriceInput(e.target.value)}
                   />
                 </div>
                 <div className="form-group">
-                  <label>Price per SNF % (₹)</label>
+                  <label>{t('price_per_snf_')}</label>
                   <input 
                     type="number" 
                     step="0.05" 
                     className="form-control" 
-                    placeholder="e.g. 2.80" 
+                    placeholder={t('eg_280')} 
                     value={snfPriceInput}
                     onChange={e => setSnfPriceInput(e.target.value)}
                   />
@@ -2281,15 +2260,15 @@ function App() {
               {milkLogForm.quantityLiters && (
                 <div style={{ background: 'var(--primary-glow)', border: '1px solid rgba(46, 125, 50, 0.2)', borderRadius: 'var(--radius-sm)', padding: '1rem', margin: '1rem 0', fontSize: '0.85rem' }}>
                   <p style={{ fontWeight: '700', color: 'var(--primary)', display: 'flex', justifyContent: 'space-between' }}>
-                    <span>Estimated Payout Rate:</span>
-                    <span>₹{calculateMilkRate(
+                    <span>{t('estimated_payout_rat')}</span>
+                    <span>{t('key_38')}{calculateMilkRate(
                       milkLogForm.fatPercentage ? parseFloat(milkLogForm.fatPercentage) : undefined,
                       milkLogForm.snfPercentage ? parseFloat(milkLogForm.snfPercentage) : undefined
-                    ).toFixed(2)} / L</span>
+                    ).toFixed(2)} {t('_l')}</span>
                   </p>
                   <p style={{ fontWeight: '800', fontSize: '1.05rem', marginTop: '0.4rem', color: 'var(--text)', display: 'flex', justifyContent: 'space-between' }}>
-                    <span>Total Milk Value:</span>
-                    <span>₹{Math.round(
+                    <span>{t('total_milk_value')}</span>
+                    <span>{t('key_39')}{Math.round(
                       parseFloat(milkLogForm.quantityLiters) * 
                       calculateMilkRate(
                         milkLogForm.fatPercentage ? parseFloat(milkLogForm.fatPercentage) : undefined,
@@ -2298,18 +2277,15 @@ function App() {
                     )}</span>
                   </p>
                   <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.35rem', fontStyle: 'italic', lineHeight: '1.3' }}>
-                    * Payout Formula: (Fat% × ₹{fatPriceInput || '5.20'}) + (SNF% × ₹{snfPriceInput || '2.80'}) per Liter. Base flat rate is ₹48/L if Fat/SNF are not provided.
-                  </p>
+                    {t('_payout_formula_fat_')}{fatPriceInput || '5.20'}{t('_snf_')}{snfPriceInput || '2.80'}{t('_per_liter_base_flat')}</p>
                 </div>
               )}
 
               <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
                 <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setShowLogMilkModal(false)}>
-                  Cancel
-                </button>
+                  {t('cancel')}</button>
                 <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>
-                  Log Yield
-                </button>
+                  {t('log_yield')}</button>
               </div>
             </form>
           </div>
@@ -2325,7 +2301,7 @@ function App() {
             <button className="btn btn-secondary" style={{ position: 'absolute', right: '1.5rem', top: '1.5rem', padding: '0.25rem' }} onClick={() => setShowAddTxModal(false)}>
               <X size={18} />
             </button>
-            <h3 style={{ fontSize: '1.4rem', marginBottom: '1.5rem' }}>Record Transaction</h3>
+            <h3 style={{ fontSize: '1.4rem', marginBottom: '1.5rem' }}>{t('record_transaction')}</h3>
 
             <form onSubmit={handleTxSubmit}>
               <div style={{ display: 'flex', background: 'var(--bg)', borderRadius: 'var(--radius-sm)', padding: '0.25rem', gap: '0.25rem', marginBottom: '1.25rem', border: '1px solid var(--border)' }}>
@@ -2335,21 +2311,19 @@ function App() {
                   style={{ flex: 1, padding: '0.4rem' }}
                   onClick={() => setTxForm(prev => ({ ...prev, type: 'expense', category: 'Feed Purchase' }))}
                 >
-                  Expense (ఖర్చు)
-                </button>
+                  {t('expense_')}</button>
                 <button 
                   type="button" 
                   className={`btn ${txForm.type === 'income' ? 'btn-primary' : 'btn-secondary'}`}
                   style={{ flex: 1, padding: '0.4rem' }}
                   onClick={() => setTxForm(prev => ({ ...prev, type: 'income', category: 'Milk Sales' }))}
                 >
-                  Income (ఆదాయం)
-                </button>
+                  {t('income_')}</button>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div className="form-group">
-                  <label>Date</label>
+                  <label>{t('date')}</label>
                   <input 
                     type="date" 
                     className="form-control" 
@@ -2360,7 +2334,7 @@ function App() {
                 </div>
                 
                 <div className="form-group">
-                  <label>Category</label>
+                  <label>{t('category')}</label>
                   <select 
                     className="form-control"
                     value={txForm.category}
@@ -2368,20 +2342,20 @@ function App() {
                   >
                     {txForm.type === 'expense' ? (
                       <>
-                        <option value="Feed Purchase">Feed Purchase (దానా)</option>
-                        <option value="Medicines">Medicines (మందులు)</option>
-                        <option value="Salaries">Salaries (జీతాలు)</option>
-                        <option value="Diesel">Diesel (డీజిల్)</option>
-                        <option value="Maintenance">Maintenance (నిర్వహణ)</option>
-                        <option value="Cattle Purchase">Cattle Purchase</option>
-                        <option value="Other">Other Expense</option>
+                        <option value="Feed Purchase">{t('feed_purchase_')}</option>
+                        <option value="Medicines">{t('medicines_')}</option>
+                        <option value="Salaries">{t('salaries_')}</option>
+                        <option value="Diesel">{t('diesel_')}</option>
+                        <option value="Maintenance">{t('maintenance_')}</option>
+                        <option value="Cattle Purchase">{t('cattle_purchase')}</option>
+                        <option value="Other">{t('other_expense')}</option>
                       </>
                     ) : (
                       <>
-                        <option value="Milk Sales">Milk Sales (పాలు అమ్మకం)</option>
-                        <option value="Manure Sales">Manure Sales (ఎరువులు)</option>
-                        <option value="Cattle Sale">Cattle Sale</option>
-                        <option value="Other">Other Income</option>
+                        <option value="Milk Sales">{t('milk_sales_')}</option>
+                        <option value="Manure Sales">{t('manure_sales_')}</option>
+                        <option value="Cattle Sale">{t('cattle_sale')}</option>
+                        <option value="Other">{t('other_income')}</option>
                       </>
                     )}
                   </select>
@@ -2389,11 +2363,11 @@ function App() {
               </div>
 
               <div className="form-group">
-                <label>Amount (₹) *</label>
+                <label>{t('amount_')}</label>
                 <input 
                   type="number" 
                   className="form-control" 
-                  placeholder="e.g. 500" 
+                  placeholder={t('eg_500')} 
                   required
                   value={txForm.amount}
                   onChange={e => setTxForm(prev => ({ ...prev, amount: e.target.value }))}
@@ -2401,24 +2375,24 @@ function App() {
               </div>
 
               <div className="form-group">
-                <label>Payment Method</label>
+                <label>{t('payment_method')}</label>
                 <select 
                   className="form-control"
                   value={txForm.paymentMethod}
                   onChange={e => setTxForm(prev => ({ ...prev, paymentMethod: e.target.value as Transaction['paymentMethod'] }))}
                 >
-                  <option value="upi">UPI (PhonePe/GPay)</option>
-                  <option value="cash">Cash (నగదు)</option>
-                  <option value="bank_transfer">Bank Transfer</option>
+                  <option value="upi">{t('upi_phonepegpay')}</option>
+                  <option value="cash">{t('cash_')}</option>
+                  <option value="bank_transfer">{t('bank_transfer')}</option>
                 </select>
               </div>
 
               <div className="form-group">
-                <label>Upload Receipt/Bill Photo</label>
+                <label>{t('upload_receiptbill_p')}</label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', border: '1.5px dashed var(--border)', padding: '1rem', borderRadius: 'var(--radius-sm)', justifyContent: 'center', cursor: 'pointer', position: 'relative' }}>
                   {txForm.receiptPhoto ? (
                     <div style={{ position: 'relative', width: '100%' }}>
-                      <img src={txForm.receiptPhoto} alt="Receipt Preview" style={{ width: '100%', maxHeight: '100px', objectFit: 'contain' }} />
+                      <img src={txForm.receiptPhoto} alt={t('receipt_preview')} style={{ width: '100%', maxHeight: '100px', objectFit: 'contain' }} />
                       <button 
                         type="button" 
                         className="btn btn-danger" 
@@ -2434,7 +2408,7 @@ function App() {
                   ) : (
                     <>
                       <Camera size={20} color="var(--text-muted)" />
-                      <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Tap to snap receipt photo</span>
+                      <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{t('tap_to_snap_receipt_')}</span>
                       <input 
                         type="file" 
                         accept="image/*" 
@@ -2448,11 +2422,11 @@ function App() {
               </div>
 
               <div className="form-group">
-                <label>Description / Notes</label>
+                <label>{t('description_notes')}</label>
                 <input 
                   type="text" 
                   className="form-control" 
-                  placeholder="e.g. Sudarshan buffalo feeds, 5 bags"
+                  placeholder={t('eg_sudarshan_buffalo')}
                   value={txForm.notes}
                   onChange={e => setTxForm(prev => ({ ...prev, notes: e.target.value }))}
                 />
@@ -2460,11 +2434,9 @@ function App() {
 
               <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
                 <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setShowAddTxModal(false)}>
-                  Cancel
-                </button>
+                  {t('cancel')}</button>
                 <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>
-                  Save Entry
-                </button>
+                  {t('save_entry')}</button>
               </div>
             </form>
           </div>
@@ -2480,18 +2452,18 @@ function App() {
             <button className="btn btn-secondary" style={{ position: 'absolute', right: '1.5rem', top: '1.5rem', padding: '0.25rem' }} onClick={() => setShowAddHealthModal(false)}>
               <X size={18} />
             </button>
-            <h3 style={{ fontSize: '1.4rem', marginBottom: '1.5rem' }}>Schedule/Record Treatment</h3>
+            <h3 style={{ fontSize: '1.4rem', marginBottom: '1.5rem' }}>{t('schedulerecord_treat')}</h3>
 
             <form onSubmit={handleHealthSubmit}>
               <div className="form-group">
-                <label>Select Animal *</label>
+                <label>{t('select_animal_')}</label>
                 <select 
                   className="form-control" 
                   required 
                   value={healthForm.cattleId}
                   onChange={e => setHealthForm(prev => ({ ...prev, cattleId: e.target.value }))}
                 >
-                  <option value="">-- Select Cattle --</option>
+                  <option value="">{t('_select_cattle_')}</option>
                   {cattle.map(c => (
                     <option key={c.id} value={c.id}>
                       {c.name ? `${c.name} (${c.tagNumber})` : c.tagNumber}
@@ -2502,25 +2474,25 @@ function App() {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div className="form-group">
-                  <label>Type</label>
+                  <label>{t('type')}</label>
                   <select 
                     className="form-control"
                     value={healthForm.treatmentType}
                     onChange={e => setHealthForm(prev => ({ ...prev, treatmentType: e.target.value as HealthLog['treatmentType'] }))}
                   >
-                    <option value="vaccination">Vaccination (టీకా)</option>
-                    <option value="deworming">Deworming (నట్టల నివారణ)</option>
-                    <option value="artificial_insemination">AI Breeding</option>
-                    <option value="medical_treatment">Vet Medical Treatment</option>
-                    <option value="routine_check">Routine Checkup</option>
+                    <option value="vaccination">{t('vaccination_')}</option>
+                    <option value="deworming">{t('deworming_')}</option>
+                    <option value="artificial_insemination">{t('ai_breeding')}</option>
+                    <option value="medical_treatment">{t('vet_medical_treatmen')}</option>
+                    <option value="routine_check">{t('routine_checkup')}</option>
                   </select>
                 </div>
                 <div className="form-group">
-                  <label>Treatment Name *</label>
+                  <label>{t('treatment_name_')}</label>
                   <input 
                     type="text" 
                     className="form-control" 
-                    placeholder="e.g. FMD Vaccine / Albendazole" 
+                    placeholder={t('eg_fmd_vaccine_alben')} 
                     required
                     value={healthForm.title}
                     onChange={e => setHealthForm(prev => ({ ...prev, title: e.target.value }))}
@@ -2530,7 +2502,7 @@ function App() {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div className="form-group">
-                  <label>Administered Date (Completed)</label>
+                  <label>{t('administered_date_co')}</label>
                   <input 
                     type="date" 
                     className="form-control"
@@ -2539,7 +2511,7 @@ function App() {
                   />
                 </div>
                 <div className="form-group">
-                  <label>Next Due Date (Schedule)</label>
+                  <label>{t('next_due_date_schedu')}</label>
                   <input 
                     type="date" 
                     className="form-control"
@@ -2551,21 +2523,21 @@ function App() {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div className="form-group">
-                  <label>Veterinary Cost (₹)</label>
+                  <label>{t('veterinary_cost_')}</label>
                   <input 
                     type="number" 
                     className="form-control" 
-                    placeholder="e.g. 500"
+                    placeholder={t('eg_500')}
                     value={healthForm.cost}
                     onChange={e => setHealthForm(prev => ({ ...prev, cost: e.target.value }))}
                   />
                 </div>
                 <div className="form-group">
-                  <label>Performed By</label>
+                  <label>{t('performed_by')}</label>
                   <input 
                     type="text" 
                     className="form-control" 
-                    placeholder="e.g. Dr. Rao"
+                    placeholder={t('eg_dr_rao')}
                     value={healthForm.performedBy}
                     onChange={e => setHealthForm(prev => ({ ...prev, performedBy: e.target.value }))}
                   />
@@ -2573,11 +2545,11 @@ function App() {
               </div>
 
               <div className="form-group">
-                <label>Treatment/Vet Notes</label>
+                <label>{t('treatmentvet_notes')}</label>
                 <textarea 
                   className="form-control" 
                   rows={2} 
-                  placeholder="Notes about dosage, reaction, etc."
+                  placeholder={t('notes_about_dosage_r')}
                   value={healthForm.notes}
                   onChange={e => setHealthForm(prev => ({ ...prev, notes: e.target.value }))}
                 />
@@ -2585,11 +2557,9 @@ function App() {
 
               <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
                 <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setShowAddHealthModal(false)}>
-                  Cancel
-                </button>
+                  {t('cancel')}</button>
                 <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>
-                  Schedule
-                </button>
+                  {t('schedule')}</button>
               </div>
             </form>
           </div>
@@ -2605,11 +2575,10 @@ function App() {
             <button className="btn btn-secondary" style={{ position: 'absolute', right: '1.5rem', top: '1.5rem', padding: '0.25rem' }} onClick={() => setReceiptPreviewUrl(null)}>
               <X size={18} />
             </button>
-            <h3 style={{ fontSize: '1.2rem', marginBottom: '1.5rem' }}>Receipt File Preview</h3>
-            <img src={receiptPreviewUrl} alt="Receipt Payout Document" style={{ width: '100%', maxHeight: '450px', objectFit: 'contain', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }} />
+            <h3 style={{ fontSize: '1.2rem', marginBottom: '1.5rem' }}>{t('receipt_file_preview')}</h3>
+            <img src={receiptPreviewUrl} alt={t('receipt_payout_docum')} style={{ width: '100%', maxHeight: '450px', objectFit: 'contain', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }} />
             <button className="btn btn-primary" style={{ marginTop: '1.5rem', width: '120px' }} onClick={() => setReceiptPreviewUrl(null)}>
-              Close
-            </button>
+              {t('close')}</button>
           </div>
         </div>
       )}
@@ -2657,8 +2626,8 @@ function App() {
               
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '1rem' }}>
                 <div>
-                  <h3 style={{ fontSize: '1.4rem' }}>{selectedCow.name || 'Unnamed Cow'} Analytics</h3>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '0.2rem' }}>Ear Tag: <strong>{selectedCow.tagNumber}</strong> &bull; Status: <span className={`status-badge ${selectedCow.status}`}>{selectedCow.status}</span></p>
+                  <h3 style={{ fontSize: '1.4rem' }}>{selectedCow.name || 'Unnamed Cow'} {t('analytics')}</h3>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '0.2rem' }}>{t('ear_tag')}<strong>{selectedCow.tagNumber}</strong> {t('bull_status')}<span className={`status-badge ${selectedCow.status}`}>{selectedCow.status}</span></p>
                 </div>
                 <button 
                   className="btn btn-secondary" 
@@ -2678,42 +2647,41 @@ function App() {
                     setShowAddCattleModal(true);
                   }}
                 >
-                  <Edit size={14} /> Edit Profile
-                </button>
+                  <Edit size={14} /> {t('edit_profile')}</button>
               </div>
 
               {/* Profitability Widgets */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
                 <div className="card" style={{ background: netMargin >= 0 ? 'rgba(34, 197, 94, 0.05)' : 'rgba(239, 68, 68, 0.05)', borderColor: netMargin >= 0 ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)' }}>
-                  <p style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Net Margin</p>
+                  <p style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase' }}>{t('net_margin_40')}</p>
                   <p style={{ fontSize: '1.5rem', fontWeight: '800', color: netMargin >= 0 ? 'var(--success)' : 'var(--danger)', marginTop: '0.25rem' }}>
                     {netMargin >= 0 ? '₹' : '-₹'}{Math.abs(netMargin)}
                   </p>
                 </div>
                 <div className="card">
-                  <p style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Milk Revenue</p>
-                  <p style={{ fontSize: '1.25rem', fontWeight: '700', color: 'var(--text)', marginTop: '0.25rem' }}>₹{Math.round(totalIncome)}</p>
-                  <p style={{ fontSize: '0.7rem', color: 'var(--success)', marginTop: '0.2rem' }}>{cowLogs.reduce((sum, l) => sum + l.quantityLiters, 0).toFixed(1)}L total</p>
+                  <p style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase' }}>{t('milk_revenue')}</p>
+                  <p style={{ fontSize: '1.25rem', fontWeight: '700', color: 'var(--text)', marginTop: '0.25rem' }}>{t('key_41')}{Math.round(totalIncome)}</p>
+                  <p style={{ fontSize: '0.7rem', color: 'var(--success)', marginTop: '0.2rem' }}>{cowLogs.reduce((sum, l) => sum + l.quantityLiters, 0).toFixed(1)}{t('l_total')}</p>
                 </div>
                 <div className="card">
-                  <p style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Vet Expenses</p>
-                  <p style={{ fontSize: '1.25rem', fontWeight: '700', color: 'var(--text)', marginTop: '0.25rem' }}>₹{vetCost}</p>
-                  <p style={{ fontSize: '0.7rem', color: 'var(--danger)', marginTop: '0.2rem' }}>{cowHealth.length} treatments</p>
+                  <p style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase' }}>{t('vet_expenses')}</p>
+                  <p style={{ fontSize: '1.25rem', fontWeight: '700', color: 'var(--text)', marginTop: '0.25rem' }}>{t('key_42')}{vetCost}</p>
+                  <p style={{ fontSize: '0.7rem', color: 'var(--danger)', marginTop: '0.2rem' }}>{cowHealth.length} {t('treatments')}</p>
                 </div>
                 <div className="card">
-                  <p style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Est. Feed Cost</p>
-                  <p style={{ fontSize: '1.25rem', fontWeight: '700', color: 'var(--text)', marginTop: '0.25rem' }}>₹{proratedFeedCost}</p>
-                  <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>Farm avg prorated</p>
+                  <p style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase' }}>{t('est_feed_cost')}</p>
+                  <p style={{ fontSize: '1.25rem', fontWeight: '700', color: 'var(--text)', marginTop: '0.25rem' }}>{t('key_43')}{proratedFeedCost}</p>
+                  <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>{t('farm_avg_prorated')}</p>
                 </div>
               </div>
 
               {/* Yield Curve SVG Chart */}
               <div className="card" style={{ marginBottom: '0' }}>
                 <div className="card-header" style={{ marginBottom: '1.5rem' }}>
-                  <h3 className="card-title"><TrendingUp size={16} /> Individual Yield Curve</h3>
+                  <h3 className="card-title"><TrendingUp size={16} /> {t('individual_yield_cur')}</h3>
                 </div>
                 {recentDates.length === 0 ? (
-                  <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem 0' }}>No milk logs recorded for this cow yet.</p>
+                  <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem 0' }}>{t('no_milk_logs_recorde')}</p>
                 ) : (
                   <div style={{ height: '220px', width: '100%', position: 'relative' }}>
                     <svg width="100%" height="100%" viewBox={`0 0 ${recentDates.length * 100 + 40} 220`} preserveAspectRatio="none">
@@ -2724,10 +2692,10 @@ function App() {
                       <line x1="40" y1="180" x2="100%" y2="180" stroke="var(--border)" strokeWidth="1.5" />
 
                       {/* Y-axis labels */}
-                      <text x="5" y="34" className="chart-axis-text">20 L</text>
-                      <text x="5" y="84" className="chart-axis-text">15 L</text>
-                      <text x="5" y="134" className="chart-axis-text">10 L</text>
-                      <text x="5" y="184" className="chart-axis-text">0 L</text>
+                      <text x="5" y="34" className="chart-axis-text">{t('20_l')}</text>
+                      <text x="5" y="84" className="chart-axis-text">{t('15_l')}</text>
+                      <text x="5" y="134" className="chart-axis-text">{t('10_l')}</text>
+                      <text x="5" y="184" className="chart-axis-text">{t('0_l')}</text>
 
                       {/* Render line and points */}
                       {(() => {
@@ -2749,10 +2717,9 @@ function App() {
                               <g key={i}>
                                 <circle cx={p.x} cy={p.y} r="5" fill="var(--bg-card)" stroke="var(--primary)" strokeWidth="2" />
                                 <text x={p.x} y={p.y - 12} style={{ fill: 'var(--text)', fontSize: '10px', fontWeight: '700', textAnchor: 'middle' }}>
-                                  {p.totalLit.toFixed(1)}L
-                                </text>
+                                  {p.totalLit.toFixed(1)}{t('l')}</text>
                                 <text x={p.x} y="202" className="chart-axis-text" style={{ textAnchor: 'middle' }}>
-                                  {p.dateStr.split('-')[2]}/{p.dateStr.split('-')[1]}
+                                  {p.dateStr.split('-')[2]}{t('key_44')}{p.dateStr.split('-')[1]}
                                 </text>
                               </g>
                             ))}
@@ -2767,20 +2734,19 @@ function App() {
               {/* Reproduction Timeline */}
               <div className="card" style={{ marginTop: '1.5rem', marginBottom: '0' }}>
                 <div className="card-header" style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <h3 className="card-title"><Calendar size={16} /> Reproduction Timeline</h3>
+                  <h3 className="card-title"><Calendar size={16} /> {t('reproduction_timelin')}</h3>
                   <button className="btn btn-secondary" style={{ padding: '0.4rem 0.6rem', fontSize: '0.8rem' }} onClick={() => {
                     setBreedingForm(prev => ({ ...prev, cattleId: selectedCow.id }));
                     setShowAddBreedingModal(true);
                   }}>
-                    <Plus size={14} /> Log Event
-                  </button>
+                    <Plus size={14} /> {t('log_event')}</button>
                 </div>
                 
                 {(() => {
                   const cowBreeding = breedingLogs.filter(b => b.cattleId === selectedCow.id).sort((a, b) => new Date(b.eventDate).getTime() - new Date(a.eventDate).getTime());
                   
                   if (cowBreeding.length === 0) {
-                    return <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem 0' }}>No breeding logs recorded yet.</p>;
+                    return <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem 0' }}>{t('no_breeding_logs_rec')}</p>;
                   }
 
                   return (
@@ -2810,7 +2776,7 @@ function App() {
                               )}
                             </div>
                             <button className="btn btn-secondary" style={{ padding: '0.25rem', color: 'var(--danger)' }} onClick={async () => {
-                              if (confirm('Delete this event?')) {
+                              if (confirm(t('delete_this_event'))) {
                                 await db.deleteBreedingLog(log.id);
                                 refreshData();
                               }
@@ -2844,33 +2810,33 @@ function App() {
             </div>
             <form onSubmit={handleInventorySubmit}>
               <div style={{ marginBottom: '1rem' }}>
-                <label>Category</label>
+                <label>{t('category')}</label>
                 <select 
                   className="form-control" 
                   value={inventoryForm.category}
                   onChange={e => setInventoryForm(prev => ({ ...prev, category: e.target.value as any }))}
                 >
-                  <option value="concentrate">Concentrate (Sudarshan, Godrej, etc)</option>
-                  <option value="silage">Silage</option>
-                  <option value="dry_fodder">Dry Fodder / Hay</option>
-                  <option value="medicine">Medicine & Supplements</option>
-                  <option value="other">Other</option>
+                  <option value="concentrate">{t('concentrate_sudarsha')}</option>
+                  <option value="silage">{t('silage')}</option>
+                  <option value="dry_fodder">{t('dry_fodder_hay')}</option>
+                  <option value="medicine">{t('medicine_supplements')}</option>
+                  <option value="other">{t('other')}</option>
                 </select>
               </div>
               <div style={{ marginBottom: '1rem' }}>
-                <label>Item Name / Brand</label>
+                <label>{t('item_name_brand')}</label>
                 <input 
                   type="text" 
                   className="form-control" 
                   required
-                  placeholder="e.g. Sudarshan 5000, Corn Silage"
+                  placeholder={t('eg_sudarshan_5000_co')}
                   value={inventoryForm.name}
                   onChange={e => setInventoryForm(prev => ({ ...prev, name: e.target.value }))}
                 />
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
                 <div>
-                  <label>Total Quantity Delivered</label>
+                  <label>{t('total_quantity_deliv')}</label>
                   <input 
                     type="number" 
                     step="0.01"
@@ -2881,26 +2847,26 @@ function App() {
                   />
                 </div>
                 <div>
-                  <label>Unit</label>
+                  <label>{t('unit')}</label>
                   <select 
                     className="form-control" 
                     value={inventoryForm.unit}
                     onChange={e => setInventoryForm(prev => ({ ...prev, unit: e.target.value as any }))}
                   >
-                    <option value="kg">KG</option>
-                    <option value="tons">Tons</option>
-                    <option value="liters">Liters</option>
-                    <option value="units">Units / Bags</option>
+                    <option value="kg">{t('kg')}</option>
+                    <option value="tons">{t('tons')}</option>
+                    <option value="liters">{t('liters')}</option>
+                    <option value="units">{t('units_bags')}</option>
                   </select>
                 </div>
               </div>
               <div style={{ marginBottom: '1.5rem' }}>
-                <label>Low Stock Warning Threshold</label>
+                <label>{t('low_stock_warning_th')}</label>
                 <input 
                   type="number" 
                   className="form-control" 
                   required
-                  placeholder="Warn me when stock drops below..."
+                  placeholder={t('warn_me_when_stock_d')}
                   value={inventoryForm.lowStockThreshold}
                   onChange={e => setInventoryForm(prev => ({ ...prev, lowStockThreshold: e.target.value }))}
                 />
@@ -2920,30 +2886,29 @@ function App() {
         <div className="modal-overlay" onClick={() => setShowConsumeInventoryModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <h3 style={{ fontSize: '1.2rem' }}>Consume Stock</h3>
+              <h3 style={{ fontSize: '1.2rem' }}>{t('consume_stock')}</h3>
               <button className="btn btn-secondary" style={{ padding: '0.25rem' }} onClick={() => setShowConsumeInventoryModal(false)}>
                 <X size={18} />
               </button>
             </div>
             <form onSubmit={handleConsumeInventorySubmit}>
               <div style={{ marginBottom: '1.5rem', background: 'var(--bg-card)', padding: '1rem', borderRadius: 'var(--radius-sm)' }}>
-                <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>You are updating the remaining inventory after feeding the herd.</p>
+                <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>{t('you_are_updating_the')}</p>
               </div>
               <div style={{ marginBottom: '1.5rem' }}>
-                <label>Amount Consumed</label>
+                <label>{t('amount_consumed')}</label>
                 <input 
                   type="number" 
                   step="0.01"
                   className="form-control" 
                   required
-                  placeholder="e.g. 25"
+                  placeholder={t('eg_25')}
                   value={consumeInventoryForm.quantity}
                   onChange={e => setConsumeInventoryForm(prev => ({ ...prev, quantity: e.target.value }))}
                 />
               </div>
               <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
-                Deduct from Stock
-              </button>
+                {t('deduct_from_stock')}</button>
             </form>
           </div>
         </div>
@@ -2956,28 +2921,28 @@ function App() {
         <div className="modal-overlay" onClick={() => setShowAddBreedingModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <h3 style={{ fontSize: '1.2rem' }}>Log Breeding Event</h3>
+              <h3 style={{ fontSize: '1.2rem' }}>{t('log_breeding_event')}</h3>
               <button className="btn btn-secondary" style={{ padding: '0.25rem' }} onClick={() => setShowAddBreedingModal(false)}>
                 <X size={18} />
               </button>
             </div>
             <form onSubmit={handleBreedingSubmit}>
               <div style={{ marginBottom: '1rem' }}>
-                <label>Event Type</label>
+                <label>{t('event_type')}</label>
                 <select 
                   className="form-control" 
                   value={breedingForm.eventType}
                   onChange={e => setBreedingForm(prev => ({ ...prev, eventType: e.target.value as any }))}
                 >
-                  <option value="heat">Heat (Estrus)</option>
-                  <option value="ai">Artificial Insemination (AI) / Mating</option>
-                  <option value="pd">Pregnancy Diagnosis (PD)</option>
-                  <option value="dry_off">Dry Off</option>
-                  <option value="calving">Calving / Birth</option>
+                  <option value="heat">{t('heat_estrus')}</option>
+                  <option value="ai">{t('artificial_inseminat')}</option>
+                  <option value="pd">{t('pregnancy_diagnosis_')}</option>
+                  <option value="dry_off">{t('dry_off')}</option>
+                  <option value="calving">{t('calving_birth')}</option>
                 </select>
               </div>
               <div style={{ marginBottom: '1rem' }}>
-                <label>Date</label>
+                <label>{t('date')}</label>
                 <input 
                   type="date" 
                   className="form-control" 
@@ -2987,7 +2952,7 @@ function App() {
                 />
               </div>
               <div style={{ marginBottom: '1.5rem' }}>
-                <label>Notes</label>
+                <label>{t('notes')}</label>
                 <textarea 
                   className="form-control" 
                   rows={2} 
@@ -3002,8 +2967,7 @@ function App() {
                 />
               </div>
               <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
-                Save Event
-              </button>
+                {t('save_event')}</button>
             </form>
           </div>
         </div>
