@@ -19,6 +19,14 @@ import {
 import { db } from './utils/supabaseClient';
 import type { Farm, Cattle, MilkLog, HealthLog, Transaction, Profile } from './types';
 
+const SECRET_QUESTIONS = [
+  "What is your mother's maiden name?",
+  "What was the name of your first pet?",
+  "What is your favorite cow's name?",
+  "In what city or town was your first job?",
+  "What was the make and model of your first tractor?"
+];
+
 function App() {
   // Theme State
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
@@ -35,6 +43,8 @@ function App() {
     location: '',
     managerName: '',
     ownerPhone: '',
+    recoveryQuestionIndex: '0',
+    recoveryAnswer: '',
   });
 
   // Active Farm Code ID (SaaS Multi-Tenancy Gateway)
@@ -51,6 +61,10 @@ function App() {
   const [resetOwnerPhoneInput, setResetOwnerPhoneInput] = useState('');
   const [resetOwnerNewPinInput, setResetOwnerNewPinInput] = useState('');
   const [resetOwnerError, setResetOwnerError] = useState('');
+  const [resetOwnerStep, setResetOwnerStep] = useState(1); // 1 = Code & Phone, 2 = Answer & New PIN
+  const [resetOwnerQuestionText, setResetOwnerQuestionText] = useState('');
+  const [resetOwnerAnswerInput, setResetOwnerAnswerInput] = useState('');
+  const [resetOwnerSecretMatch, setResetOwnerSecretMatch] = useState(''); // Holds the exact answer value to match
   const [farmFinderSearch, setFarmFinderSearch] = useState('');
   const [farmFinderResults, setFarmFinderResults] = useState<{ id: string, name: string, location: string, ownerName: string }[]>([]);
 
@@ -230,40 +244,79 @@ function App() {
 
   const handleResetOwnerPinSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!resetOwnerCodeInput.trim() || !resetOwnerPhoneInput.trim() || !resetOwnerNewPinInput.trim()) return;
-
     setResetOwnerError('');
-    const code = resetOwnerCodeInput.trim();
-    const phone = resetOwnerPhoneInput.trim();
-    const pin = resetOwnerNewPinInput.trim();
 
-    if (code !== activeFarmId) {
-      setResetOwnerError('Incorrect Farm Access Code.');
-      return;
+    if (resetOwnerStep === 1) {
+      if (!resetOwnerCodeInput.trim() || !resetOwnerPhoneInput.trim()) return;
+      const code = resetOwnerCodeInput.trim();
+      const phone = resetOwnerPhoneInput.trim();
+
+      if (code !== activeFarmId) {
+        setResetOwnerError('Incorrect Farm Access Code.');
+        return;
+      }
+
+      const ownerProfile = profiles.find(p => p.role === 'owner');
+      if (!ownerProfile) {
+        setResetOwnerError('Owner profile not found.');
+        return;
+      }
+
+      // Check if packed phone matches
+      const [rawPhone, questionIdx, secretAnswer] = ownerProfile.phoneNumber.split('|');
+      const normalizedRegistered = (rawPhone || ownerProfile.phoneNumber).replace(/\s+/g, '');
+      const normalizedEntered = phone.replace(/\s+/g, '');
+
+      if (normalizedRegistered !== normalizedEntered) {
+        setResetOwnerError('Incorrect registered Owner Phone Number.');
+        return;
+      }
+
+      if (secretAnswer && questionIdx !== undefined) {
+        // Move to step 2: answer the secret question
+        setResetOwnerQuestionText(SECRET_QUESTIONS[parseInt(questionIdx)] || 'Secret Recovery Question');
+        setResetOwnerSecretMatch(secretAnswer);
+        setResetOwnerStep(2);
+      } else {
+        // Fallback for older profiles without secret questions
+        setResetOwnerStep(3); // Direct PIN input step
+      }
+    } else if (resetOwnerStep === 2) {
+      if (!resetOwnerAnswerInput.trim()) return;
+      
+      const enteredAnswer = resetOwnerAnswerInput.trim().toLowerCase();
+      if (enteredAnswer !== resetOwnerSecretMatch) {
+        setResetOwnerError('Incorrect answer to your secret question.');
+        return;
+      }
+      
+      // Correct! Proceed to set PIN
+      setResetOwnerStep(3);
+    } else if (resetOwnerStep === 3) {
+      if (!resetOwnerNewPinInput.trim()) return;
+      const pin = resetOwnerNewPinInput.trim();
+
+      if (pin.length !== 4 || !/^\d+$/.test(pin)) {
+        setResetOwnerError('Security PIN must be exactly 4 digits.');
+        return;
+      }
+
+      await db.resetOwnerPin(activeFarmId || '', pin);
+      alert('Owner PIN reset successfully! Please log in using your new PIN.');
+      
+      // Clear state
+      setResetOwnerCodeInput('');
+      setResetOwnerPhoneInput('');
+      setResetOwnerNewPinInput('');
+      setResetOwnerAnswerInput('');
+      setResetOwnerQuestionText('');
+      setResetOwnerSecretMatch('');
+      setResetOwnerError('');
+      setResetOwnerStep(1);
+      setShowOwnerPinReset(false);
+      
+      await refreshData();
     }
-
-    const ownerProfile = profiles.find(p => p.role === 'owner');
-    if (!ownerProfile || ownerProfile.phoneNumber.replace(/\s+/g, '') !== phone.replace(/\s+/g, '')) {
-      setResetOwnerError('Incorrect registered Owner Phone Number.');
-      return;
-    }
-
-    if (pin.length !== 4 || !/^\d+$/.test(pin)) {
-      setResetOwnerError('Security PIN must be exactly 4 digits.');
-      return;
-    }
-
-    await db.resetOwnerPin(code, pin);
-    alert('Owner PIN reset successfully! Please log in using your new PIN.');
-    
-    // Clear state
-    setResetOwnerCodeInput('');
-    setResetOwnerPhoneInput('');
-    setResetOwnerNewPinInput('');
-    setResetOwnerError('');
-    setShowOwnerPinReset(false);
-    
-    await refreshData();
   };
 
   const handleFarmSearchChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -279,13 +332,16 @@ function App() {
 
   const handleRegisterFarmSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!registerForm.farmName || !registerForm.ownerName || !registerForm.managerName || !registerForm.ownerPhone) return;
+    if (!registerForm.farmName || !registerForm.ownerName || !registerForm.managerName || !registerForm.ownerPhone || !registerForm.recoveryAnswer) return;
+
+    // Pack: Phone|QuestionIndex|NormalizedAnswer (Allows recovery without DB schema migrations)
+    const packedPhone = `${registerForm.ownerPhone.trim()}|${registerForm.recoveryQuestionIndex}|${registerForm.recoveryAnswer.trim().toLowerCase()}`;
 
     const result = await db.createFarm(
       registerForm.farmName,
       registerForm.location,
       registerForm.ownerName,
-      registerForm.ownerPhone,
+      packedPhone,
       registerForm.managerName
     );
 
@@ -295,7 +351,7 @@ function App() {
     setActiveProfile(result.profiles[0]); // Logs in as new Owner
     setIsLoggedIn(true);
     setShowRegisterFarm(false);
-    setRegisterForm({ ownerName: '', farmName: '', location: '', managerName: '', ownerPhone: '' });
+    setRegisterForm({ ownerName: '', farmName: '', location: '', managerName: '', ownerPhone: '', recoveryQuestionIndex: '0', recoveryAnswer: '' });
     await refreshData();
   };
 
@@ -629,6 +685,34 @@ function App() {
                   />
                 </div>
 
+                <div className="form-group" style={{ marginTop: '0.5rem' }}>
+                  <label>Secret Recovery Question * (For PIN Recovery)</label>
+                  <select 
+                    className="form-control" 
+                    required
+                    value={registerForm.recoveryQuestionIndex}
+                    onChange={e => setRegisterForm(prev => ({ ...prev, recoveryQuestionIndex: e.target.value }))}
+                    style={{ padding: '0.4rem 0.6rem', fontSize: '0.85rem' }}
+                  >
+                    {SECRET_QUESTIONS.map((q, idx) => (
+                      <option key={idx} value={idx}>{q}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-group" style={{ marginTop: '0.5rem' }}>
+                  <label>Secret Answer *</label>
+                  <input 
+                    type="text" 
+                    className="form-control" 
+                    required 
+                    placeholder="e.g. Ganga"
+                    value={registerForm.recoveryAnswer}
+                    onChange={e => setRegisterForm(prev => ({ ...prev, recoveryAnswer: e.target.value }))}
+                    autoComplete="off"
+                  />
+                </div>
+
                 <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem' }}>
                   <button 
                     type="button" 
@@ -767,48 +851,77 @@ function App() {
               <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginBottom: '1.5rem' }}>Verify your details to set a new owner security PIN.</p>
 
               <form onSubmit={handleResetOwnerPinSubmit} style={{ textAlign: 'left' }}>
-                <div className="form-group">
-                  <label htmlFor="reset-code-input">Farm Access Code *</label>
-                  <input 
-                    id="reset-code-input"
-                    type="text" 
-                    className="form-control" 
-                    required 
-                    placeholder="e.g. farm-khammam-001"
-                    value={resetOwnerCodeInput}
-                    onChange={e => setResetOwnerCodeInput(e.target.value)}
-                    autoComplete="off"
-                  />
-                </div>
+                {resetOwnerStep === 1 && (
+                  <>
+                    <div className="form-group">
+                      <label htmlFor="reset-code-input">Farm Access Code *</label>
+                      <input 
+                        id="reset-code-input"
+                        type="text" 
+                        className="form-control" 
+                        required 
+                        placeholder="e.g. farm-khammam-001"
+                        value={resetOwnerCodeInput}
+                        onChange={e => setResetOwnerCodeInput(e.target.value)}
+                        autoComplete="off"
+                      />
+                    </div>
 
-                <div className="form-group" style={{ marginTop: '0.5rem' }}>
-                  <label htmlFor="reset-phone-input">Owner Registered Phone *</label>
-                  <input 
-                    id="reset-phone-input"
-                    type="tel" 
-                    className="form-control" 
-                    required 
-                    placeholder="e.g. +61 412 345 678"
-                    value={resetOwnerPhoneInput}
-                    onChange={e => setResetOwnerPhoneInput(e.target.value)}
-                    autoComplete="off"
-                  />
-                </div>
+                    <div className="form-group" style={{ marginTop: '0.5rem' }}>
+                      <label htmlFor="reset-phone-input">Owner Registered Phone *</label>
+                      <input 
+                        id="reset-phone-input"
+                        type="tel" 
+                        className="form-control" 
+                        required 
+                        placeholder="e.g. +61 412 345 678"
+                        value={resetOwnerPhoneInput}
+                        onChange={e => setResetOwnerPhoneInput(e.target.value)}
+                        autoComplete="off"
+                      />
+                    </div>
+                  </>
+                )}
 
-                <div className="form-group" style={{ marginTop: '0.5rem' }}>
-                  <label htmlFor="reset-pin-input">New 4-Digit Owner PIN *</label>
-                  <input 
-                    id="reset-pin-input"
-                    type="password" 
-                    maxLength={4}
-                    className="form-control" 
-                    required 
-                    placeholder="••••"
-                    style={{ letterSpacing: '0.5em', fontSize: '1.1rem' }}
-                    value={resetOwnerNewPinInput}
-                    onChange={e => setResetOwnerNewPinInput(e.target.value)}
-                  />
-                </div>
+                {resetOwnerStep === 2 && (
+                  <>
+                    <div style={{ background: 'var(--card-hover)', padding: '0.75rem', borderRadius: '6px', border: '1px solid var(--border)', fontSize: '0.85rem', marginBottom: '1rem' }}>
+                      <strong>Recovery Question:</strong><br />
+                      <span style={{ color: 'var(--text-muted)' }}>{resetOwnerQuestionText}</span>
+                    </div>
+
+                    <div className="form-group">
+                      <label htmlFor="reset-answer-input">Secret Answer *</label>
+                      <input 
+                        id="reset-answer-input"
+                        type="text" 
+                        className="form-control" 
+                        required 
+                        placeholder="e.g. Ganga"
+                        value={resetOwnerAnswerInput}
+                        onChange={e => setResetOwnerAnswerInput(e.target.value)}
+                        autoComplete="off"
+                      />
+                    </div>
+                  </>
+                )}
+
+                {resetOwnerStep === 3 && (
+                  <div className="form-group">
+                    <label htmlFor="reset-pin-input">New 4-Digit Owner PIN *</label>
+                    <input 
+                      id="reset-pin-input"
+                      type="password" 
+                      maxLength={4}
+                      className="form-control" 
+                      required 
+                      placeholder="••••"
+                      style={{ letterSpacing: '0.5em', fontSize: '1.1rem' }}
+                      value={resetOwnerNewPinInput}
+                      onChange={e => setResetOwnerNewPinInput(e.target.value)}
+                    />
+                  </div>
+                )}
 
                 {resetOwnerError && (
                   <p style={{ color: 'var(--danger)', fontSize: '0.75rem', marginTop: '0.5rem' }}>
@@ -817,7 +930,7 @@ function App() {
                 )}
 
                 <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1.5rem', padding: '0.8rem' }}>
-                  Reset Owner PIN
+                  {resetOwnerStep === 1 ? 'Verify Phone & Proceed' : resetOwnerStep === 2 ? 'Verify Answer & Proceed' : 'Set New Owner PIN'}
                 </button>
                 
                 <div style={{ marginTop: '0.75rem' }}>
@@ -828,7 +941,11 @@ function App() {
                       setResetOwnerCodeInput('');
                       setResetOwnerPhoneInput('');
                       setResetOwnerNewPinInput('');
+                      setResetOwnerAnswerInput('');
+                      setResetOwnerQuestionText('');
+                      setResetOwnerSecretMatch('');
                       setResetOwnerError('');
+                      setResetOwnerStep(1);
                     }}
                     className="btn btn-secondary" 
                     style={{ width: '100%', padding: '0.5rem', fontSize: '0.8rem' }}
