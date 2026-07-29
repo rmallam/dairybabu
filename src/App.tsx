@@ -29,7 +29,7 @@ const SECRET_QUESTIONS = [
 
 function App() {
   // Theme State
-  const [theme, setTheme] = useState<'light' | 'dark'>('dark');
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
   // Login/Authentication State
   const [isLoggedIn, setIsLoggedIn] = useState(false);
