@@ -35,6 +35,11 @@ function App() {
     location: '',
   });
 
+  // Active Farm Code ID (SaaS Multi-Tenancy Gateway)
+  const [activeFarmId, setActiveFarmId] = useState<string | null>(localStorage.getItem('dairybabu_active_farm_id'));
+  const [farmCodeInput, setFarmCodeInput] = useState('');
+  const [farmCodeError, setFarmCodeError] = useState('');
+
   // Farm State
   const [farm, setFarm] = useState<Farm>({ id: '', name: 'Loading...', location: '', createdAt: '' });
 
@@ -111,16 +116,29 @@ function App() {
     notes: '',
   });
 
-  // Sync state from database
+  // Sync state from database (Multi-Tenant Sandboxed)
   const refreshData = async () => {
     try {
-      const [c, m, h, t, p, f, active] = await Promise.all([
+      if (!activeFarmId) {
+        setFarm({ id: '', name: 'Select Farm', location: '', createdAt: '' });
+        return;
+      }
+      
+      const f = await db.getFarmById(activeFarmId);
+      if (!f) {
+        // Active farm ID not found, clear settings
+        setActiveFarmId(null);
+        localStorage.removeItem('dairybabu_active_farm_id');
+        return;
+      }
+      setFarm(f);
+
+      const [c, m, h, t, p, active] = await Promise.all([
         db.getCattle(),
         db.getMilkLogs(),
         db.getHealthLogs(),
         db.getTransactions(),
         db.getProfiles(),
-        db.getFarm(),
         db.getActiveProfile()
       ]);
       setCattle(c);
@@ -128,8 +146,7 @@ function App() {
       setHealthLogs(h);
       setTransactions(t);
       setProfiles(p);
-      setFarm(f);
-      if (active && active.id) {
+      if (active && active.id && active.farmId === activeFarmId) {
         setActiveProfile(active);
       } else if (p.length > 0) {
         setActiveProfile(p[0]);
@@ -142,7 +159,7 @@ function App() {
 
   useEffect(() => {
     refreshData();
-  }, []);
+  }, [activeFarmId]);
 
   // Theme Toggle Effect
   useEffect(() => {
@@ -173,6 +190,30 @@ function App() {
     setIsLoggedIn(false);
   };
 
+  const handleEnterFarmPortal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!farmCodeInput.trim()) return;
+
+    setFarmCodeError('');
+    const code = farmCodeInput.trim();
+    const f = await db.getFarmById(code);
+    if (f) {
+      localStorage.setItem('dairybabu_active_farm_id', f.id);
+      setActiveFarmId(f.id);
+      setFarmCodeInput('');
+      setFarmCodeError('');
+    } else {
+      setFarmCodeError('Invalid Access Code. For the demo, use: farm-khammam-001');
+    }
+  };
+
+  const handleExitFarmPortal = () => {
+    localStorage.removeItem('dairybabu_active_farm_id');
+    setActiveFarmId(null);
+    setPinInput('');
+    setLoginError('');
+  };
+
   const handleRegisterFarmSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!registerForm.farmName || !registerForm.ownerName) return;
@@ -183,6 +224,8 @@ function App() {
       registerForm.ownerName
     );
 
+    localStorage.setItem('dairybabu_active_farm_id', result.farm.id);
+    setActiveFarmId(result.farm.id);
     setFarm(result.farm);
     setActiveProfile(result.profiles[0]); // Logs in as new Owner
     setIsLoggedIn(true);
@@ -194,12 +237,11 @@ function App() {
   const handleResetToDemo = async () => {
     if (confirm('Are you sure you want to reset and reload the demo Khammam Farm data (Ganga, Gauri, Dodla Sales, etc.)? Any custom farm data will be cleared.')) {
       await db.resetToDemo();
-      const f = await db.getFarm();
-      const active = await db.getActiveProfile();
-      setFarm(f);
-      setActiveProfile(active);
+      localStorage.setItem('dairybabu_active_farm_id', 'farm-khammam-001');
+      setActiveFarmId('farm-khammam-001');
       setIsLoggedIn(false);
-      await refreshData();
+      setPinInput('');
+      setLoginError('');
     }
   };
 
@@ -519,6 +561,49 @@ function App() {
                 </div>
               </form>
             </div>
+          ) : !activeFarmId ? (
+            <div>
+              <h2 style={{ fontSize: '1.8rem', marginBottom: '0.25rem', fontFamily: 'var(--font-title)' }}>DairyBabu 🐄</h2>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1.5rem' }}>Enter your Farm Code to access your ledger.</p>
+
+              <form onSubmit={handleEnterFarmPortal} style={{ textAlign: 'left', marginTop: '1.5rem' }}>
+                <div className="form-group">
+                  <label htmlFor="farm-code-input">Farm Access Code *</label>
+                  <input 
+                    id="farm-code-input"
+                    type="text" 
+                    className="form-control" 
+                    required 
+                    placeholder="e.g. farm-khammam-001"
+                    value={farmCodeInput}
+                    onChange={e => setFarmCodeInput(e.target.value)}
+                  />
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.4rem' }}>
+                    💡 Tip: To view the demo farm, use code: <strong>farm-khammam-001</strong>
+                  </p>
+                  {farmCodeError && (
+                    <p style={{ color: 'var(--danger)', fontSize: '0.75rem', marginTop: '0.5rem' }}>
+                      ⚠️ {farmCodeError}
+                    </p>
+                  )}
+                </div>
+
+                <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1.5rem', padding: '0.8rem' }}>
+                  Enter Farm Portal
+                </button>
+                
+                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
+                  <button 
+                    type="button"
+                    onClick={() => setShowRegisterFarm(true)}
+                    className="btn btn-secondary" 
+                    style={{ flex: 1, padding: '0.5rem', fontSize: '0.8rem' }}
+                  >
+                    🚀 Register New Farm
+                  </button>
+                </div>
+              </form>
+            </div>
           ) : (
             <div>
               <h2 style={{ fontSize: '1.8rem', marginBottom: '0.25rem', fontFamily: 'var(--font-title)' }}>DairyBabu 🐄</h2>
@@ -579,11 +664,11 @@ function App() {
                 <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
                   <button 
                     type="button"
-                    onClick={() => setShowRegisterFarm(true)}
+                    onClick={handleExitFarmPortal}
                     className="btn btn-secondary" 
                     style={{ flex: 1, padding: '0.5rem', fontSize: '0.8rem' }}
                   >
-                    🚀 Register Farm
+                    ← Switch Farm
                   </button>
                   <button 
                     type="button"
@@ -601,7 +686,8 @@ function App() {
                 </div>
               </form>
             </div>
-          )}
+          )
+}
         </div>
       </div>
     );

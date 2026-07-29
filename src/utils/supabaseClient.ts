@@ -90,6 +90,28 @@ export const db = {
     }
     return JSON.parse(localStorage.getItem(STORAGE_KEYS.FARM) || '{}');
   },
+
+  getFarmById: async (id: string): Promise<Farm | null> => {
+    if (id === 'farm-khammam-001') {
+      // Automatic seed check for demo farm
+      return db.getFarm();
+    }
+    if (isLiveDb && supabase) {
+      const { data } = await supabase.from('farms').select('*').eq('id', id).maybeSingle();
+      if (data) {
+        return {
+          id: data.id,
+          name: data.name,
+          location: data.location,
+          createdAt: data.created_at
+        };
+      }
+      return null;
+    }
+    const localFarm = JSON.parse(localStorage.getItem(STORAGE_KEYS.FARM) || '{}');
+    if (localFarm.id === id) return localFarm;
+    return null;
+  },
   
   updateFarm: async (name: string, location: string): Promise<Farm> => {
     if (isLiveDb && supabase) {
