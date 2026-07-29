@@ -74,3 +74,25 @@ export interface Transaction {
   recordedBy: string; // Profile Name / ID
   createdAt: string;
 }
+
+export interface BreedingLog {
+  id: string;
+  farmId: string;
+  cattleId: string;
+  eventType: 'heat' | 'ai' | 'pd' | 'dry_off' | 'calving';
+  eventDate: string;
+  notes?: string;
+  recordedBy: string;
+  createdAt: string;
+}
+
+export interface InventoryItem {
+  id: string;
+  farmId: string;
+  category: 'silage' | 'concentrate' | 'dry_fodder' | 'medicine' | 'other';
+  name: string;
+  quantity: number;
+  unit: 'kg' | 'tons' | 'liters' | 'units';
+  lowStockThreshold: number;
+  lastUpdated: string;
+}

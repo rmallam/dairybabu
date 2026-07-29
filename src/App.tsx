@@ -19,7 +19,7 @@ import {
   Stethoscope
 } from 'lucide-react';
 import { db } from './utils/supabaseClient';
-import type { Farm, Cattle, MilkLog, HealthLog, Transaction, Profile } from './types';
+import type { Farm, Profile, Cattle, MilkLog, HealthLog, Transaction, BreedingLog, InventoryItem } from './types';
 
 const getGreeting = () => {
   const hour = new Date().getHours();
@@ -84,9 +84,12 @@ function App() {
   const [milkLogs, setMilkLogs] = useState<MilkLog[]>([]);
   const [healthLogs, setHealthLogs] = useState<HealthLog[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [breedingLogs, setBreedingLogs] = useState<BreedingLog[]>([]);
+  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
 
   // Navigation tab state (consistent for both Owner and Manager)
   const [activeTab, setActiveTab] = useState<'dashboard' | 'cattle' | 'milk' | 'financials' | 'health'>('dashboard');
+  const [cattleSubTab, setCattleSubTab] = useState<'herd' | 'feed'>('herd');
 
   // Search/Filters
   const [cattleSearch, setCattleSearch] = useState('');
@@ -102,6 +105,9 @@ function App() {
   const [milkLogType, setMilkLogType] = useState<'individual' | 'bulk'>('individual');
   const [showAddTxModal, setShowAddTxModal] = useState(false);
   const [showAddHealthModal, setShowAddHealthModal] = useState(false);
+  const [showAddInventoryModal, setShowAddInventoryModal] = useState(false);
+  const [showConsumeInventoryModal, setShowConsumeInventoryModal] = useState(false);
+  const [showAddBreedingModal, setShowAddBreedingModal] = useState(false);
   const [receiptPreviewUrl, setReceiptPreviewUrl] = useState<string | null>(null);
 
   // Dynamic Rate Configuration (DairyKhata Feature)
@@ -151,6 +157,27 @@ function App() {
     notes: '',
   });
 
+  const [inventoryForm, setInventoryForm] = useState({
+    id: '',
+    category: 'concentrate' as InventoryItem['category'],
+    name: '',
+    quantity: '',
+    unit: 'kg' as InventoryItem['unit'],
+    lowStockThreshold: '50',
+  });
+
+  const [consumeInventoryForm, setConsumeInventoryForm] = useState({
+    itemId: '',
+    quantity: '',
+  });
+
+  const [breedingForm, setBreedingForm] = useState({
+    cattleId: '',
+    eventType: 'heat' as BreedingLog['eventType'],
+    eventDate: new Date().toISOString().split('T')[0],
+    notes: '',
+  });
+
   // Sync state from database (Multi-Tenant Sandboxed)
   const refreshData = async (overrideFarmId?: string | null) => {
     try {
@@ -169,19 +196,23 @@ function App() {
       }
       setFarm(f);
 
-      const [c, m, h, t, p, active] = await Promise.all([
+      const [c, m, h, t, p, active, bl, inv] = await Promise.all([
         db.getCattle(),
         db.getMilkLogs(),
         db.getHealthLogs(),
         db.getTransactions(),
         db.getProfiles(),
-        db.getActiveProfile()
+        db.getActiveProfile(),
+        db.getBreedingLogs(),
+        db.getInventoryItems()
       ]);
       setCattle(c);
       setMilkLogs(m);
       setHealthLogs(h);
       setTransactions(t);
       setProfiles(p);
+      setBreedingLogs(bl);
+      setInventoryItems(inv);
       if (active && active.id && active.farmId === activeFarmId) {
         setActiveProfile(active);
       } else if (p.length > 0) {
@@ -506,6 +537,58 @@ function App() {
   const handleCompleteVaccine = async (logId: string) => {
     const todayStr = new Date().toISOString().split('T')[0];
     await db.updateHealthStatus(logId, 'completed', todayStr);
+    await refreshData();
+  };
+  const handleInventorySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await db.saveInventoryItem({
+      category: inventoryForm.category,
+      name: inventoryForm.name,
+      quantity: parseFloat(inventoryForm.quantity),
+      unit: inventoryForm.unit,
+      lowStockThreshold: parseFloat(inventoryForm.lowStockThreshold)
+    }, inventoryForm.id ? inventoryForm.id : undefined);
+    
+    // Optionally create an expense transaction here if the user wanted, but keeping simple for now.
+    
+    setShowAddInventoryModal(false);
+    await refreshData();
+  };
+
+  const handleConsumeInventorySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const item = inventoryItems.find(i => i.id === consumeInventoryForm.itemId);
+    if (!item) return;
+
+    const consumedAmount = parseFloat(consumeInventoryForm.quantity);
+    if (consumedAmount > item.quantity) {
+      alert("Cannot consume more than current stock!");
+      return;
+    }
+
+    await db.saveInventoryItem({
+      category: item.category,
+      name: item.name,
+      quantity: item.quantity - consumedAmount,
+      unit: item.unit,
+      lowStockThreshold: item.lowStockThreshold
+    }, item.id);
+
+    setShowConsumeInventoryModal(false);
+    await refreshData();
+  };
+
+
+  const handleBreedingSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await db.saveBreedingLog({
+      cattleId: breedingForm.cattleId,
+      eventType: breedingForm.eventType,
+      eventDate: breedingForm.eventDate,
+      notes: breedingForm.notes,
+      recordedBy: activeProfile.id
+    });
+    setShowAddBreedingModal(false);
     await refreshData();
   };
 
@@ -1510,136 +1593,229 @@ function App() {
             ======================================================== */}
         {activeTab === 'cattle' && (
           <div>
-            <div style={{ marginBottom: '1.5rem' }}>
-              <h2 style={{ fontSize: '1.5rem' }}>Herd Inventory & Profiles</h2>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Track breeds, pregnancy status, and feed preferences.</p>
+            <div style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+              <div>
+                <h2 style={{ fontSize: '1.5rem' }}>Cattle & Feed Management</h2>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Track your herd, breeding, and manage feed inventory.</p>
+              </div>
+              <div className="tab-pill-container" style={{ display: 'flex', background: 'var(--bg-card)', padding: '0.25rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>
+                <button 
+                  className={`role-btn ${cattleSubTab === 'herd' ? 'active' : ''}`} 
+                  onClick={() => setCattleSubTab('herd')}
+                  style={{ padding: '0.4rem 1rem', fontSize: '0.85rem', borderRadius: 'var(--radius-sm)', border: 'none', background: cattleSubTab === 'herd' ? 'var(--primary)' : 'transparent', color: cattleSubTab === 'herd' ? 'white' : 'var(--text)' }}
+                >
+                  Herd Profiles
+                </button>
+                <button 
+                  className={`role-btn ${cattleSubTab === 'feed' ? 'active' : ''}`} 
+                  onClick={() => setCattleSubTab('feed')}
+                  style={{ padding: '0.4rem 1rem', fontSize: '0.85rem', borderRadius: 'var(--radius-sm)', border: 'none', background: cattleSubTab === 'feed' ? 'var(--primary)' : 'transparent', color: cattleSubTab === 'feed' ? 'white' : 'var(--text)' }}
+                >
+                  Feed Inventory
+                </button>
+              </div>
             </div>
 
-            {/* Search/Filter Controls */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', marginBottom: '2rem', alignItems: 'center' }}>
-              <div style={{ display: 'flex', gap: '1rem', flex: 1, maxWidth: '500px' }}>
-                <div style={{ position: 'relative', flex: 1 }}>
-                  <Search size={16} style={{ position: 'absolute', left: '12px', top: '12px', color: 'var(--text-muted)' }} />
-                  <input
-                    type="text"
-                    placeholder="Search Tag or Cow Name..."
-                    className="form-control"
-                    style={{ paddingLeft: '2.5rem' }}
-                    value={cattleSearch}
-                    onChange={e => setCattleSearch(e.target.value)}
-                  />
+            {cattleSubTab === 'herd' && (
+              <>
+                {/* Search/Filter Controls */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', marginBottom: '2rem', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', gap: '1rem', flex: 1, maxWidth: '500px' }}>
+                    <div style={{ position: 'relative', flex: 1 }}>
+                      <Search size={16} style={{ position: 'absolute', left: '12px', top: '12px', color: 'var(--text-muted)' }} />
+                      <input
+                        type="text"
+                        placeholder="Search Tag or Cow Name..."
+                        className="form-control"
+                        style={{ paddingLeft: '2.5rem' }}
+                        value={cattleSearch}
+                        onChange={e => setCattleSearch(e.target.value)}
+                      />
+                    </div>
+                    
+                    <select
+                      className="form-control"
+                      style={{ maxWidth: '160px' }}
+                      value={cattleFilterStatus}
+                      onChange={e => setCattleFilterStatus(e.target.value)}
+                    >
+                      <option value="all">All Status</option>
+                      <option value="milking">Milking</option>
+                      <option value="dry">Dry</option>
+                      <option value="pregnant">Pregnant</option>
+                      <option value="heifer">Heifer</option>
+                      <option value="calf">Calf</option>
+                    </select>
+                  </div>
+                  
+                  <button onClick={() => setShowAddCattleModal(true)} className="btn btn-primary">
+                    <Plus size={16} /> Profile New Cow
+                  </button>
+                </div>
+
+                {/* Cattle Cards */}
+                {filteredCattle.length === 0 ? (
+                  <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '3rem' }}>No cattle profiles match filters.</p>
+                ) : (
+                  <div className="cattle-grid">
+                    {filteredCattle.map(cow => (
+                      <div key={cow.id} className="cattle-card" onClick={() => setSelectedCowProfileId(cow.id)} style={{ cursor: 'pointer' }}>
+                        <div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                            <div className="cattle-avatar">🐄</div>
+                            <span className={`status-badge ${cow.status}`}>{cow.status}</span>
+                          </div>
+                          
+                          <h3 style={{ fontSize: '1.25rem', fontWeight: '700' }}>{cow.name || 'Unnamed Cow'}</h3>
+                          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
+                            Ear Tag: <strong style={{ color: 'var(--text)' }}>{cow.tagNumber}</strong>
+                          </p>
+                          
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.8rem', margin: '0.75rem 0', padding: '0.75rem 0', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)' }}>
+                            <div>
+                              <span style={{ color: 'var(--text-muted)' }}>Breed:</span>
+                              <p style={{ fontWeight: '700', marginTop: '0.1rem' }}>{cow.breed}</p>
+                            </div>
+                            <div>
+                              <span style={{ color: 'var(--text-muted)' }}>Cost Value:</span>
+                              <p style={{ fontWeight: '700', marginTop: '0.1rem' }}>₹{cow.purchaseCost || '—'}</p>
+                            </div>
+                          </div>
+                          
+                          {cow.notes && (
+                            <p style={{ fontSize: '0.75rem', fontStyle: 'italic', color: 'var(--text-muted)', lineHeight: '1.4' }}>
+                              &ldquo;{cow.notes}&rdquo;
+                            </p>
+                          )}
+
+                          {/* Nitara Feed Curve Recommendation */}
+                          <div style={{ marginTop: '0.75rem', padding: '0.5rem 0.75rem', background: 'var(--primary-glow)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(46, 125, 50, 0.1)', fontSize: '0.75rem' }}>
+                            <span style={{ fontWeight: '700', color: 'var(--primary)' }}>🌾 Nitara Feed Curve Tip:</span>
+                            <p style={{ color: 'var(--text)', marginTop: '0.15rem', fontStyle: 'italic' }}>
+                              {cow.status === 'milking' && "Peak milking ration: Suggest 5kg Sudarshan concentrate + 25kg green fodder + calcium."}
+                              {cow.status === 'pregnant' && "Gestating ration: Add 1.5kg extra dry fodder + mineral mix."}
+                              {cow.status === 'dry' && "Dry off ration: Maintenance feed only (2kg concentrate + silage)."}
+                              {cow.status === 'heifer' && "Heifer grow-out: High-fiber balanced grower concentrate."}
+                              {cow.status === 'calf' && "Growing calf: High-protein calf starter mix + creep feed."}
+                              {cow.status === 'bull' && "Breeding bull: Maintenance grower concentrate + exercise fodder."}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.25rem' }}>
+                          <button 
+                            className="btn btn-secondary" 
+                            style={{ flex: 1, padding: '0.4rem', fontSize: '0.8rem' }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setCattleForm({
+                                id: cow.id,
+                                tagNumber: cow.tagNumber,
+                                name: cow.name || '',
+                                breed: cow.breed,
+                                status: cow.status,
+                                birthDate: cow.birthDate || '',
+                                purchaseDate: cow.purchaseDate || '',
+                                purchaseCost: cow.purchaseCost?.toString() || '',
+                                notes: cow.notes || '',
+                              });
+                              setShowAddCattleModal(true);
+                            }}
+                          >
+                            <Edit size={14} /> Edit
+                          </button>
+                          {(activeProfile.role === 'owner' || activeProfile.role === 'manager') && (
+                            <button 
+                              className="btn btn-danger" 
+                              style={{ padding: '0.4rem 0.6rem' }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (confirm('Delete cow profile permanently?')) {
+                                  db.deleteCattle(cow.id);
+                                  refreshData();
+                                }
+                              }}
+                            >
+                              <Trash size={14} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+
+            {cattleSubTab === 'feed' && (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                  <h3 style={{ fontSize: '1.2rem' }}>Current Stock Levels</h3>
+                  <button className="btn btn-primary" onClick={() => {
+                    setInventoryForm({ id: '', category: 'concentrate', name: '', quantity: '', unit: 'kg', lowStockThreshold: '50' });
+                    setShowAddInventoryModal(true);
+                  }}>
+                    <Plus size={16} /> Add Feed Delivery
+                  </button>
                 </div>
                 
-                <select
-                  className="form-control"
-                  style={{ maxWidth: '160px' }}
-                  value={cattleFilterStatus}
-                  onChange={e => setCattleFilterStatus(e.target.value)}
-                >
-                  <option value="all">All Status</option>
-                  <option value="milking">Milking</option>
-                  <option value="dry">Dry</option>
-                  <option value="pregnant">Pregnant</option>
-                  <option value="heifer">Heifer</option>
-                  <option value="calf">Calf</option>
-                </select>
-              </div>
-              
-              <button onClick={() => setShowAddCattleModal(true)} className="btn btn-primary">
-                <Plus size={16} /> Profile New Cow
-              </button>
-            </div>
-
-            {/* Cattle Cards */}
-            {filteredCattle.length === 0 ? (
-              <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '3rem' }}>No cattle profiles match filters.</p>
-            ) : (
-              <div className="cattle-grid">
-                {filteredCattle.map(cow => (
-                  <div key={cow.id} className="cattle-card" onClick={() => setSelectedCowProfileId(cow.id)} style={{ cursor: 'pointer' }}>
-                    <div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                        <div className="cattle-avatar">🐄</div>
-                        <span className={`status-badge ${cow.status}`}>{cow.status}</span>
-                      </div>
-                      
-                      <h3 style={{ fontSize: '1.25rem', fontWeight: '700' }}>{cow.name || 'Unnamed Cow'}</h3>
-                      <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
-                        Ear Tag: <strong style={{ color: 'var(--text)' }}>{cow.tagNumber}</strong>
-                      </p>
-                      
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.8rem', margin: '0.75rem 0', padding: '0.75rem 0', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)' }}>
-                        <div>
-                          <span style={{ color: 'var(--text-muted)' }}>Breed:</span>
-                          <p style={{ fontWeight: '700', marginTop: '0.1rem' }}>{cow.breed}</p>
+                {inventoryItems.length === 0 ? (
+                  <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '3rem' }}>No feed inventory tracked yet. Add your first delivery!</p>
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
+                    {inventoryItems.map(item => (
+                      <div key={item.id} className="card" style={{ borderLeft: item.quantity <= item.lowStockThreshold ? '4px solid var(--danger)' : '4px solid var(--success)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                          <div>
+                            <span style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-muted)', fontWeight: '700' }}>{item.category.replace('_', ' ')}</span>
+                            <h4 style={{ fontSize: '1.2rem', marginTop: '0.2rem' }}>{item.name}</h4>
+                          </div>
+                          {item.quantity <= item.lowStockThreshold && (
+                            <span style={{ background: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger)', padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold' }}>
+                              LOW STOCK
+                            </span>
+                          )}
                         </div>
-                        <div>
-                          <span style={{ color: 'var(--text-muted)' }}>Cost Value:</span>
-                          <p style={{ fontWeight: '700', marginTop: '0.1rem' }}>₹{cow.purchaseCost || '—'}</p>
+                        
+                        <div style={{ marginTop: '1rem', display: 'flex', alignItems: 'flex-end', gap: '0.5rem' }}>
+                          <span style={{ fontSize: '2rem', fontWeight: '800', lineHeight: '1' }}>{item.quantity}</span>
+                          <span style={{ fontSize: '1rem', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>{item.unit}</span>
+                        </div>
+                        
+                        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.5rem' }}>
+                          <button 
+                            className="btn btn-secondary" 
+                            style={{ flex: 1, padding: '0.4rem', fontSize: '0.85rem' }}
+                            onClick={() => {
+                              setConsumeInventoryForm({ itemId: item.id, quantity: '' });
+                              setShowConsumeInventoryModal(true);
+                            }}
+                          >
+                            <Droplet size={14} style={{ marginRight: '0.2rem' }} /> Consume
+                          </button>
+                          <button 
+                            className="btn btn-secondary" 
+                            style={{ padding: '0.4rem 0.6rem' }}
+                            onClick={() => {
+                              setInventoryForm({
+                                id: item.id,
+                                category: item.category,
+                                name: item.name,
+                                quantity: item.quantity.toString(),
+                                unit: item.unit,
+                                lowStockThreshold: item.lowStockThreshold.toString()
+                              });
+                              setShowAddInventoryModal(true);
+                            }}
+                          >
+                            <Edit size={14} />
+                          </button>
                         </div>
                       </div>
-                      
-                      {cow.notes && (
-                        <p style={{ fontSize: '0.75rem', fontStyle: 'italic', color: 'var(--text-muted)', lineHeight: '1.4' }}>
-                          &ldquo;{cow.notes}&rdquo;
-                        </p>
-                      )}
-
-                      {/* Nitara Feed Curve Recommendation */}
-                      <div style={{ marginTop: '0.75rem', padding: '0.5rem 0.75rem', background: 'var(--primary-glow)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(46, 125, 50, 0.1)', fontSize: '0.75rem' }}>
-                        <span style={{ fontWeight: '700', color: 'var(--primary)' }}>🌾 Nitara Feed Curve Tip:</span>
-                        <p style={{ color: 'var(--text)', marginTop: '0.15rem', fontStyle: 'italic' }}>
-                          {cow.status === 'milking' && "Peak milking ration: Suggest 5kg Sudarshan concentrate + 25kg green fodder + calcium."}
-                          {cow.status === 'pregnant' && "Gestating ration: Add 1.5kg extra dry fodder + mineral mix."}
-                          {cow.status === 'dry' && "Dry off ration: Maintenance feed only (2kg concentrate + silage)."}
-                          {cow.status === 'heifer' && "Heifer grow-out: High-fiber balanced grower concentrate."}
-                          {cow.status === 'calf' && "Growing calf: High-protein calf starter mix + creep feed."}
-                          {cow.status === 'bull' && "Breeding bull: Maintenance grower concentrate + exercise fodder."}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.25rem' }}>
-                      <button 
-                        className="btn btn-secondary" 
-                        style={{ flex: 1, padding: '0.4rem', fontSize: '0.8rem' }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setCattleForm({
-                            id: cow.id,
-                            tagNumber: cow.tagNumber,
-                            name: cow.name || '',
-                            breed: cow.breed,
-                            status: cow.status,
-                            birthDate: cow.birthDate || '',
-                            purchaseDate: cow.purchaseDate || '',
-                            purchaseCost: cow.purchaseCost?.toString() || '',
-                            notes: cow.notes || '',
-                          });
-                          setShowAddCattleModal(true);
-                        }}
-                      >
-                        <Edit size={14} /> Edit
-                      </button>
-                      {(activeProfile.role === 'owner' || activeProfile.role === 'manager') && (
-                        <button 
-                          className="btn btn-danger" 
-                          style={{ padding: '0.4rem 0.6rem' }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (confirm('Delete cow profile permanently?')) {
-                              db.deleteCattle(cow.id);
-                              refreshData();
-                            }
-                          }}
-                        >
-                          <Trash size={14} />
-                        </button>
-                      )}
-                    </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                )}
+              </>
             )}
           </div>
         )}
@@ -2588,10 +2764,251 @@ function App() {
                 )}
               </div>
               
+              {/* Reproduction Timeline */}
+              <div className="card" style={{ marginTop: '1.5rem', marginBottom: '0' }}>
+                <div className="card-header" style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h3 className="card-title"><Calendar size={16} /> Reproduction Timeline</h3>
+                  <button className="btn btn-secondary" style={{ padding: '0.4rem 0.6rem', fontSize: '0.8rem' }} onClick={() => {
+                    setBreedingForm(prev => ({ ...prev, cattleId: selectedCow.id }));
+                    setShowAddBreedingModal(true);
+                  }}>
+                    <Plus size={14} /> Log Event
+                  </button>
+                </div>
+                
+                {(() => {
+                  const cowBreeding = breedingLogs.filter(b => b.cattleId === selectedCow.id).sort((a, b) => new Date(b.eventDate).getTime() - new Date(a.eventDate).getTime());
+                  
+                  if (cowBreeding.length === 0) {
+                    return <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem 0' }}>No breeding logs recorded yet.</p>;
+                  }
+
+                  return (
+                    <div style={{ position: 'relative', paddingLeft: '1.5rem' }}>
+                      {/* Timeline line */}
+                      <div style={{ position: 'absolute', left: '0', top: '0', bottom: '0', width: '2px', background: 'var(--border)' }}></div>
+                      
+                      {cowBreeding.map(log => (
+                        <div key={log.id} style={{ position: 'relative', marginBottom: '1.5rem' }}>
+                          <div style={{ position: 'absolute', left: '-1.85rem', top: '0.2rem', width: '12px', height: '12px', borderRadius: '50%', background: 'var(--primary)', border: '2px solid var(--bg-card)' }}></div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                            <div>
+                              <h4 style={{ fontSize: '1rem', fontWeight: '600' }}>
+                                {log.eventType === 'heat' && 'Heat (Estrus)'}
+                                {log.eventType === 'ai' && 'AI / Mating'}
+                                {log.eventType === 'pd' && 'Pregnancy Diagnosis'}
+                                {log.eventType === 'dry_off' && 'Dry Off'}
+                                {log.eventType === 'calving' && 'Calving'}
+                              </h4>
+                              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>
+                                {new Date(log.eventDate).toLocaleDateString()}
+                              </p>
+                              {log.notes && (
+                                <p style={{ fontSize: '0.85rem', marginTop: '0.4rem', color: 'var(--text)' }}>
+                                  {log.notes}
+                                </p>
+                              )}
+                            </div>
+                            <button className="btn btn-secondary" style={{ padding: '0.25rem', color: 'var(--danger)' }} onClick={async () => {
+                              if (confirm('Delete this event?')) {
+                                await db.deleteBreedingLog(log.id);
+                                refreshData();
+                              }
+                            }}>
+                              <Trash size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+              </div>
+              
             </div>
           </div>
         );
       })()}
+
+      {/* ========================================================
+          MODAL: ADD/EDIT FEED INVENTORY
+          ======================================================== */}
+      {showAddInventoryModal && (
+        <div className="modal-overlay" onClick={() => setShowAddInventoryModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h3 style={{ fontSize: '1.2rem' }}>{inventoryForm.id ? 'Edit Stock' : 'Add Feed Delivery'}</h3>
+              <button className="btn btn-secondary" style={{ padding: '0.25rem' }} onClick={() => setShowAddInventoryModal(false)}>
+                <X size={18} />
+              </button>
+            </div>
+            <form onSubmit={handleInventorySubmit}>
+              <div style={{ marginBottom: '1rem' }}>
+                <label>Category</label>
+                <select 
+                  className="form-control" 
+                  value={inventoryForm.category}
+                  onChange={e => setInventoryForm(prev => ({ ...prev, category: e.target.value as any }))}
+                >
+                  <option value="concentrate">Concentrate (Sudarshan, Godrej, etc)</option>
+                  <option value="silage">Silage</option>
+                  <option value="dry_fodder">Dry Fodder / Hay</option>
+                  <option value="medicine">Medicine & Supplements</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              <div style={{ marginBottom: '1rem' }}>
+                <label>Item Name / Brand</label>
+                <input 
+                  type="text" 
+                  className="form-control" 
+                  required
+                  placeholder="e.g. Sudarshan 5000, Corn Silage"
+                  value={inventoryForm.name}
+                  onChange={e => setInventoryForm(prev => ({ ...prev, name: e.target.value }))}
+                />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                <div>
+                  <label>Total Quantity Delivered</label>
+                  <input 
+                    type="number" 
+                    step="0.01"
+                    className="form-control" 
+                    required
+                    value={inventoryForm.quantity}
+                    onChange={e => setInventoryForm(prev => ({ ...prev, quantity: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label>Unit</label>
+                  <select 
+                    className="form-control" 
+                    value={inventoryForm.unit}
+                    onChange={e => setInventoryForm(prev => ({ ...prev, unit: e.target.value as any }))}
+                  >
+                    <option value="kg">KG</option>
+                    <option value="tons">Tons</option>
+                    <option value="liters">Liters</option>
+                    <option value="units">Units / Bags</option>
+                  </select>
+                </div>
+              </div>
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label>Low Stock Warning Threshold</label>
+                <input 
+                  type="number" 
+                  className="form-control" 
+                  required
+                  placeholder="Warn me when stock drops below..."
+                  value={inventoryForm.lowStockThreshold}
+                  onChange={e => setInventoryForm(prev => ({ ...prev, lowStockThreshold: e.target.value }))}
+                />
+              </div>
+              <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
+                {inventoryForm.id ? 'Update Stock' : 'Add Stock'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================
+          MODAL: CONSUME FEED INVENTORY
+          ======================================================== */}
+      {showConsumeInventoryModal && (
+        <div className="modal-overlay" onClick={() => setShowConsumeInventoryModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h3 style={{ fontSize: '1.2rem' }}>Consume Stock</h3>
+              <button className="btn btn-secondary" style={{ padding: '0.25rem' }} onClick={() => setShowConsumeInventoryModal(false)}>
+                <X size={18} />
+              </button>
+            </div>
+            <form onSubmit={handleConsumeInventorySubmit}>
+              <div style={{ marginBottom: '1.5rem', background: 'var(--bg-card)', padding: '1rem', borderRadius: 'var(--radius-sm)' }}>
+                <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>You are updating the remaining inventory after feeding the herd.</p>
+              </div>
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label>Amount Consumed</label>
+                <input 
+                  type="number" 
+                  step="0.01"
+                  className="form-control" 
+                  required
+                  placeholder="e.g. 25"
+                  value={consumeInventoryForm.quantity}
+                  onChange={e => setConsumeInventoryForm(prev => ({ ...prev, quantity: e.target.value }))}
+                />
+              </div>
+              <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
+                Deduct from Stock
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================
+          MODAL: ADD BREEDING LOG
+          ======================================================== */}
+      {showAddBreedingModal && (
+        <div className="modal-overlay" onClick={() => setShowAddBreedingModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h3 style={{ fontSize: '1.2rem' }}>Log Breeding Event</h3>
+              <button className="btn btn-secondary" style={{ padding: '0.25rem' }} onClick={() => setShowAddBreedingModal(false)}>
+                <X size={18} />
+              </button>
+            </div>
+            <form onSubmit={handleBreedingSubmit}>
+              <div style={{ marginBottom: '1rem' }}>
+                <label>Event Type</label>
+                <select 
+                  className="form-control" 
+                  value={breedingForm.eventType}
+                  onChange={e => setBreedingForm(prev => ({ ...prev, eventType: e.target.value as any }))}
+                >
+                  <option value="heat">Heat (Estrus)</option>
+                  <option value="ai">Artificial Insemination (AI) / Mating</option>
+                  <option value="pd">Pregnancy Diagnosis (PD)</option>
+                  <option value="dry_off">Dry Off</option>
+                  <option value="calving">Calving / Birth</option>
+                </select>
+              </div>
+              <div style={{ marginBottom: '1rem' }}>
+                <label>Date</label>
+                <input 
+                  type="date" 
+                  className="form-control" 
+                  required
+                  value={breedingForm.eventDate}
+                  onChange={e => setBreedingForm(prev => ({ ...prev, eventDate: e.target.value }))}
+                />
+              </div>
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label>Notes</label>
+                <textarea 
+                  className="form-control" 
+                  rows={2} 
+                  placeholder={
+                    breedingForm.eventType === 'ai' ? "Semen straw details (Bull ID, Breed)" : 
+                    breedingForm.eventType === 'pd' ? "Result: Positive/Negative" : 
+                    breedingForm.eventType === 'calving' ? "Calf gender, health notes" : 
+                    "Any additional observations..."
+                  }
+                  value={breedingForm.notes}
+                  onChange={e => setBreedingForm(prev => ({ ...prev, notes: e.target.value }))}
+                />
+              </div>
+              <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
+                Save Event
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
 
     </div>
   );

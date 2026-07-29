@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import type { Farm, Profile, Cattle, MilkLog, HealthLog, Transaction } from '../types';
+import type { Farm, Profile, Cattle, MilkLog, HealthLog, Transaction, BreedingLog, InventoryItem } from '../types';
 // Removed unused mockData imports
 
 // Fetch credentials from Vite env
@@ -17,6 +17,8 @@ const STORAGE_KEYS = {
   HEALTH_LOGS: 'ourdairy_health_logs',
   TRANSACTIONS: 'ourdairy_transactions',
   ACTIVE_PROFILE: 'ourdairy_active_profile',
+  BREEDING_LOGS: 'ourdairy_breeding_logs',
+  INVENTORY: 'ourdairy_inventory',
 };
 
 // Initialize local storage fallback
@@ -39,6 +41,12 @@ const initializeLocalDB = () => {
   }
   if (!localStorage.getItem(STORAGE_KEYS.TRANSACTIONS)) {
     localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify([]));
+  }
+  if (!localStorage.getItem(STORAGE_KEYS.BREEDING_LOGS)) {
+    localStorage.setItem(STORAGE_KEYS.BREEDING_LOGS, JSON.stringify([]));
+  }
+  if (!localStorage.getItem(STORAGE_KEYS.INVENTORY)) {
+    localStorage.setItem(STORAGE_KEYS.INVENTORY, JSON.stringify([]));
   }
 };
 
@@ -656,5 +664,138 @@ export const db = {
     const list = await db.getTransactions();
     const updated = list.filter(t => t.id !== id);
     localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(updated));
+  },
+  
+  // Breeding Logs
+  getBreedingLogs: async (): Promise<BreedingLog[]> => {
+    if (isLiveDb && supabase) {
+      const farm = await db.getFarm();
+      const { data } = await supabase.from('breeding_logs').select('*').eq('farm_id', farm.id);
+      if (data) {
+        return data.map(l => ({
+          id: l.id,
+          farmId: l.farm_id,
+          cattleId: l.cattle_id,
+          eventType: l.event_type,
+          eventDate: l.event_date,
+          notes: l.notes,
+          recordedBy: l.recorded_by,
+          createdAt: l.created_at
+        })).sort((a, b) => new Date(b.eventDate).getTime() - new Date(a.eventDate).getTime());
+      }
+    }
+    const list: BreedingLog[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.BREEDING_LOGS) || '[]');
+    return list.sort((a, b) => new Date(b.eventDate).getTime() - new Date(a.eventDate).getTime());
+  },
+
+  saveBreedingLog: async (log: Omit<BreedingLog, 'id' | 'farmId' | 'createdAt'>): Promise<BreedingLog> => {
+    const activeFarm = await db.getFarm();
+    const id = `breed-${Date.now()}`;
+    
+    if (isLiveDb && supabase) {
+      const dbLog = {
+        id,
+        farm_id: activeFarm.id,
+        cattle_id: log.cattleId,
+        event_type: log.eventType,
+        event_date: log.eventDate,
+        notes: log.notes || null,
+        recorded_by: log.recordedBy
+      };
+      await supabase.from('breeding_logs').insert([dbLog]);
+      const list = await db.getBreedingLogs();
+      return list.find(l => l.id === id) as BreedingLog;
+    }
+
+    const list = await db.getBreedingLogs();
+    const newLog: BreedingLog = {
+      ...log,
+      id,
+      farmId: activeFarm.id,
+      createdAt: new Date().toISOString()
+    };
+    list.push(newLog);
+    localStorage.setItem(STORAGE_KEYS.BREEDING_LOGS, JSON.stringify(list));
+    return newLog;
+  },
+
+  deleteBreedingLog: async (id: string): Promise<void> => {
+    if (isLiveDb && supabase) {
+      await supabase.from('breeding_logs').delete().eq('id', id);
+      return;
+    }
+    const list = await db.getBreedingLogs();
+    const updated = list.filter(l => l.id !== id);
+    localStorage.setItem(STORAGE_KEYS.BREEDING_LOGS, JSON.stringify(updated));
+  },
+
+  // Inventory
+  getInventoryItems: async (): Promise<InventoryItem[]> => {
+    if (isLiveDb && supabase) {
+      const farm = await db.getFarm();
+      const { data } = await supabase.from('inventory').select('*').eq('farm_id', farm.id);
+      if (data) {
+        return data.map(i => ({
+          id: i.id,
+          farmId: i.farm_id,
+          category: i.category,
+          name: i.name,
+          quantity: i.quantity,
+          unit: i.unit,
+          lowStockThreshold: i.low_stock_threshold,
+          lastUpdated: i.last_updated
+        }));
+      }
+    }
+    return JSON.parse(localStorage.getItem(STORAGE_KEYS.INVENTORY) || '[]');
+  },
+
+  saveInventoryItem: async (item: Omit<InventoryItem, 'id' | 'farmId' | 'lastUpdated'>, existingId?: string): Promise<InventoryItem> => {
+    const activeFarm = await db.getFarm();
+    const id = existingId || `inv-${Date.now()}`;
+    
+    if (isLiveDb && supabase) {
+      const dbItem = {
+        id,
+        farm_id: activeFarm.id,
+        category: item.category,
+        name: item.name,
+        quantity: item.quantity,
+        unit: item.unit,
+        low_stock_threshold: item.lowStockThreshold,
+        last_updated: new Date().toISOString()
+      };
+      await supabase.from('inventory').upsert([dbItem]);
+      const list = await db.getInventoryItems();
+      return list.find(i => i.id === id) as InventoryItem;
+    }
+
+    const list = await db.getInventoryItems();
+    const newItem: InventoryItem = {
+      ...item,
+      id,
+      farmId: activeFarm.id,
+      lastUpdated: new Date().toISOString()
+    };
+
+    if (existingId) {
+      const idx = list.findIndex(i => i.id === existingId);
+      if (idx !== -1) list[idx] = newItem;
+    } else {
+      list.push(newItem);
+    }
+    
+    localStorage.setItem(STORAGE_KEYS.INVENTORY, JSON.stringify(list));
+    return newItem;
+  },
+
+  deleteInventoryItem: async (id: string): Promise<void> => {
+    if (isLiveDb && supabase) {
+      await supabase.from('inventory').delete().eq('id', id);
+      return;
+    }
+    const list = await db.getInventoryItems();
+    const updated = list.filter(i => i.id !== id);
+    localStorage.setItem(STORAGE_KEYS.INVENTORY, JSON.stringify(updated));
   }
 };
