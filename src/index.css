@@ -99,7 +99,7 @@ button, input, select, textarea {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.9rem 2rem;
+  padding: calc(0.9rem + env(safe-area-inset-top)) 2rem 0.9rem;
   background: var(--bg-card);
   border-bottom: 1px solid var(--border);
   position: sticky;
@@ -400,7 +400,7 @@ button, input, select, textarea {
   border-top: 1px solid var(--border);
   display: none;
   grid-template-columns: repeat(4, 1fr);
-  padding: 0.5rem 0;
+  padding: 0.5rem 0 calc(0.5rem + env(safe-area-inset-bottom));
   z-index: 99;
   box-shadow: 0 -2px 12px rgba(46, 58, 36, 0.08);
 }
@@ -641,7 +641,7 @@ button, input, select, textarea {
   }
 
   .header {
-    padding: 0.75rem 1rem;
+    padding: calc(0.75rem + env(safe-area-inset-top)) 1rem 0.75rem;
   }
 
   .logo-text {
@@ -650,7 +650,7 @@ button, input, select, textarea {
 
   .main-content {
     padding: 1rem;
-    padding-bottom: 6rem;
+    padding-bottom: calc(6rem + env(safe-area-inset-bottom));
   }
 
   .dashboard-grid {
@@ -674,7 +674,7 @@ button, input, select, textarea {
   align-items: center;
   justify-content: center;
   min-height: 100vh;
-  padding: 1.5rem;
+  padding: calc(1.5rem + env(safe-area-inset-top)) 1.5rem calc(1.5rem + env(safe-area-inset-bottom));
   background: linear-gradient(160deg, #F1F4EB 0%, #FCFAF6 50%, #FDF4E5 100%);
 }
 
