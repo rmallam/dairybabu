@@ -510,9 +510,7 @@ function App() {
 
   const filteredTransactions = transactions.filter(t => {
     const matchesCategory = txFilterCategory === 'all' || t.category === txFilterCategory;
-    // Managers only see their own recorded transactions to protect overall financials
-    const matchesRoleVisibility = activeProfile.role === 'owner' || t.recordedBy === activeProfile.fullName;
-    return matchesCategory && matchesRoleVisibility;
+    return matchesCategory;
   });
 
   if (!isLoggedIn) {
@@ -659,9 +657,17 @@ function App() {
                       value={farmCodeInput}
                       onChange={e => setFarmCodeInput(e.target.value)}
                     />
-                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.4rem' }}>
-                      💡 Tip: To view the demo farm, use code: <strong>farm-khammam-001</strong>
-                    </p>
+                    <div style={{ marginTop: '1rem', padding: '0.75rem', background: 'var(--card-hover)', borderRadius: '6px', border: '1px dashed var(--border)', fontSize: '0.8rem', textAlign: 'center' }}>
+                      💡 Want to try the Demo Farm?<br />
+                      <button 
+                        type="button" 
+                        className="btn btn-secondary" 
+                        style={{ marginTop: '0.4rem', padding: '0.3rem 0.6rem', fontSize: '0.75rem', color: 'var(--primary)', borderColor: 'var(--primary)', height: 'auto', display: 'inline-block' }}
+                        onClick={() => setFarmCodeInput('farm-khammam-001')}
+                      >
+                        Autofill Code: farm-khammam-001
+                      </button>
+                    </div>
                     {farmCodeError && (
                       <p style={{ color: 'var(--danger)', fontSize: '0.75rem', marginTop: '0.5rem' }}>
                         ⚠️ {farmCodeError}
@@ -762,9 +768,9 @@ function App() {
                   </button>
                 </div>
 
-                <div className="login-divider">
-                  Access PINs:<br />
-                  <strong>Owner ({profiles.find(p => p.role === 'owner')?.fullName.split(' ')[0] || 'Owner'}): {profiles.find(p => p.role === 'owner')?.securityPin || '0000'}</strong> &bull; <strong>Manager ({profiles.find(p => p.role === 'manager')?.fullName.split(' ')[0] || 'Manager'}): {profiles.find(p => p.role === 'manager')?.securityPin || '1111'}</strong>
+                <div style={{ marginTop: '1.5rem', padding: '0.75rem', background: 'var(--card-hover)', borderRadius: '6px', border: '1px dashed var(--border)', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                  🔑 <strong>Demo Access PINs</strong><br />
+                  Owner ({profiles.find(p => p.role === 'owner')?.fullName.split(' ')[0] || 'Owner'}): <strong>{profiles.find(p => p.role === 'owner')?.securityPin || '0000'}</strong> &bull; Manager ({profiles.find(p => p.role === 'manager')?.fullName.split(' ')[0] || 'Manager'}): <strong>{profiles.find(p => p.role === 'manager')?.securityPin || '1111'}</strong>
                 </div>
               </form>
             </div>
