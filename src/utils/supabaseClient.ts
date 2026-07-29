@@ -60,8 +60,15 @@ const mapProfile = (p: any): Profile => ({
 export const db = {
   // Farm & Profile APIs
   getFarm: async (): Promise<Farm> => {
+    const activeId = localStorage.getItem('ourdairy_active_farm_id') || 'farm-khammam-001';
+    const f = await db.getFarmById(activeId);
+    if (f) return f;
+    return JSON.parse(localStorage.getItem(STORAGE_KEYS.FARM) || '{}');
+  },
+
+  getFarmById: async (id: string): Promise<Farm | null> => {
     if (isLiveDb && supabase) {
-      const { data, error } = await supabase.from('farms').select('*').limit(1).maybeSingle();
+      const { data, error } = await supabase.from('farms').select('*').eq('id', id).maybeSingle();
       if (!error && data) {
         return {
           id: data.id,
@@ -71,40 +78,23 @@ export const db = {
         };
       }
       
-      // Seed default farm in database
-      const dbFarm = {
-        id: DEFAULT_FARM.id,
-        name: DEFAULT_FARM.name,
-        location: DEFAULT_FARM.location,
-        created_at: DEFAULT_FARM.createdAt
-      };
-      const { data: seeded } = await supabase.from('farms').insert([dbFarm]).select().single();
-      if (seeded) {
-        return {
-          id: seeded.id,
-          name: seeded.name,
-          location: seeded.location,
-          createdAt: seeded.created_at
+      // Seed default farm in database if it doesn't exist and they are trying to load the demo
+      if (id === 'farm-khammam-001') {
+        const dbFarm = {
+          id: DEFAULT_FARM.id,
+          name: DEFAULT_FARM.name,
+          location: DEFAULT_FARM.location,
+          created_at: DEFAULT_FARM.createdAt
         };
-      }
-    }
-    return JSON.parse(localStorage.getItem(STORAGE_KEYS.FARM) || '{}');
-  },
-
-  getFarmById: async (id: string): Promise<Farm | null> => {
-    if (id === 'farm-khammam-001') {
-      // Automatic seed check for demo farm
-      return db.getFarm();
-    }
-    if (isLiveDb && supabase) {
-      const { data } = await supabase.from('farms').select('*').eq('id', id).maybeSingle();
-      if (data) {
-        return {
-          id: data.id,
-          name: data.name,
-          location: data.location,
-          createdAt: data.created_at
-        };
+        const { data: seeded } = await supabase.from('farms').insert([dbFarm]).select().single();
+        if (seeded) {
+          return {
+            id: seeded.id,
+            name: seeded.name,
+            location: seeded.location,
+            createdAt: seeded.created_at
+          };
+        }
       }
       return null;
     }
@@ -184,7 +174,7 @@ export const db = {
     return farm;
   },
 
-  createFarm: async (farmName: string, location: string, ownerName: string): Promise<{ farm: Farm, profiles: Profile[] }> => {
+  createFarm: async (farmName: string, location: string, ownerName: string, managerName: string): Promise<{ farm: Farm, profiles: Profile[] }> => {
     const farmId = `farm-${Date.now()}`;
     const newFarm: Farm = {
       id: farmId,
@@ -209,7 +199,7 @@ export const db = {
         id: managerId,
         farmId,
         role: 'manager',
-        fullName: 'Raju (Manager)',
+        fullName: managerName || 'Manager',
         phoneNumber: '+91 99999 77777',
         securityPin: '1111',
         createdAt: new Date().toISOString(),

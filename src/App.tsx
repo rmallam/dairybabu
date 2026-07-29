@@ -33,6 +33,7 @@ function App() {
     ownerName: '',
     farmName: '',
     location: '',
+    managerName: '',
   });
 
   // Active Farm Code ID (SaaS Multi-Tenancy Gateway)
@@ -232,12 +233,13 @@ function App() {
 
   const handleRegisterFarmSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!registerForm.farmName || !registerForm.ownerName) return;
+    if (!registerForm.farmName || !registerForm.ownerName || !registerForm.managerName) return;
 
     const result = await db.createFarm(
       registerForm.farmName,
       registerForm.location,
-      registerForm.ownerName
+      registerForm.ownerName,
+      registerForm.managerName
     );
 
     localStorage.setItem('ourdairy_active_farm_id', result.farm.id);
@@ -246,7 +248,7 @@ function App() {
     setActiveProfile(result.profiles[0]); // Logs in as new Owner
     setIsLoggedIn(true);
     setShowRegisterFarm(false);
-    setRegisterForm({ ownerName: '', farmName: '', location: '' });
+    setRegisterForm({ ownerName: '', farmName: '', location: '', managerName: '' });
     await refreshData();
   };
 
@@ -525,6 +527,18 @@ function App() {
                     placeholder="e.g. Rakesh Kumar"
                     value={registerForm.ownerName}
                     onChange={e => setRegisterForm(prev => ({ ...prev, ownerName: e.target.value }))}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Manager Name *</label>
+                  <input 
+                    type="text" 
+                    className="form-control" 
+                    required 
+                    placeholder="e.g. Gopal"
+                    value={registerForm.managerName}
+                    onChange={e => setRegisterForm(prev => ({ ...prev, managerName: e.target.value }))}
                   />
                 </div>
 
