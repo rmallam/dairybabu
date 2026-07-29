@@ -250,16 +250,7 @@ function App() {
     await refreshData();
   };
 
-  const handleResetToDemo = async () => {
-    if (confirm('Are you sure you want to reset and reload the demo Khammam Farm data (Ganga, Gauri, Dodla Sales, etc.)? Any custom farm data will be cleared.')) {
-      await db.resetToDemo();
-      localStorage.setItem('dairybabu_active_farm_id', 'farm-khammam-001');
-      setActiveFarmId('farm-khammam-001');
-      setIsLoggedIn(false);
-      setPinInput('');
-      setLoginError('');
-    }
-  };
+
 
   // Simulated receipt file selection (saves base64 in state)
   const handleReceiptChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -749,22 +740,14 @@ function App() {
                   Sign In
                 </button>
                 
-                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
+                <div style={{ marginTop: '0.75rem' }}>
                   <button 
                     type="button"
                     onClick={handleExitFarmPortal}
                     className="btn btn-secondary" 
-                    style={{ flex: 1, padding: '0.5rem', fontSize: '0.8rem' }}
+                    style={{ width: '100%', padding: '0.5rem', fontSize: '0.8rem' }}
                   >
                     ← Switch Farm
-                  </button>
-                  <button 
-                    type="button"
-                    onClick={handleResetToDemo}
-                    className="btn btn-secondary" 
-                    style={{ flex: 1, padding: '0.5rem', fontSize: '0.8rem', color: 'var(--danger)' }}
-                  >
-                    🔄 Reset Demo
                   </button>
                 </div>
 
