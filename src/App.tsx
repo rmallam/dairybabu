@@ -14,7 +14,9 @@ import {
   FileText,
   Layers,
   Lock,
-  LogOut
+  LogOut,
+  Droplet,
+  Stethoscope
 } from 'lucide-react';
 import { db } from './utils/supabaseClient';
 import type { Farm, Cattle, MilkLog, HealthLog, Transaction, Profile } from './types';
@@ -84,7 +86,7 @@ function App() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
 
   // Navigation tab state (consistent for both Owner and Manager)
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'cattle' | 'financials' | 'health'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'cattle' | 'milk' | 'financials' | 'health'>('dashboard');
 
   // Search/Filters
   const [cattleSearch, setCattleSearch] = useState('');
@@ -405,25 +407,6 @@ function App() {
       quantityLiters: parseFloat(milkLogForm.quantityLiters),
       fatPercentage: milkLogForm.fatPercentage ? parseFloat(milkLogForm.fatPercentage) : undefined,
       snfPercentage: milkLogForm.snfPercentage ? parseFloat(milkLogForm.snfPercentage) : undefined,
-      recordedBy: activeProfile.fullName,
-    });
-
-    // Automatically record income transaction based on FAT/SNF pricing (DairyKhata Feature)
-    const lit = parseFloat(milkLogForm.quantityLiters);
-    const fat = milkLogForm.fatPercentage ? parseFloat(milkLogForm.fatPercentage) : undefined;
-    const snf = milkLogForm.snfPercentage ? parseFloat(milkLogForm.snfPercentage) : undefined;
-    const rate = calculateMilkRate(fat, snf);
-    const totalPayout = Math.round(lit * rate);
-
-    await db.saveTransaction({
-      type: 'income',
-      category: 'Milk Sales',
-      amount: totalPayout,
-      transactionDate: milkLogForm.logDate,
-      paymentMethod: 'upi',
-      notes: milkLogType === 'individual' 
-        ? `Milk payout for Cow ${selectedCow?.name || 'Unnamed'} (${selectedCow?.tagNumber}) - ${lit} Liters (Fat: ${fat || '—'}%, SNF: ${snf || '—'}%) at ₹${rate.toFixed(2)}/L`
-        : `Bulk milk sales yield log (${milkLogForm.session}) - ${lit} Liters at ₹${rate.toFixed(2)}/L`,
       recordedBy: activeProfile.fullName,
     });
 
@@ -1001,6 +984,12 @@ function App() {
               Cattle ({cattle.length})
             </button>
             <button 
+              onClick={() => setActiveTab('milk')} 
+              className={`role-btn ${activeTab === 'milk' ? 'active' : ''}`}
+            >
+              Milk Logs
+            </button>
+            <button 
               onClick={() => setActiveTab('financials')} 
               className={`role-btn ${activeTab === 'financials' ? 'active' : ''}`}
             >
@@ -1456,6 +1445,64 @@ function App() {
         )}
 
         {/* ========================================================
+            TAB: MILK LOGS
+            ======================================================== */}
+        {activeTab === 'milk' && (
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+              <div>
+                <h2 style={{ fontSize: '1.5rem' }}>Daily Milk Logs</h2>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>A complete history of individual and bulk milk yields.</p>
+              </div>
+              {activeProfile.role === 'manager' && (
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button className="btn btn-primary" style={{ padding: '0.6rem 1rem' }} onClick={() => { setMilkLogType('individual'); setShowLogMilkModal(true); }}>
+                    🐄 Individual Log
+                  </button>
+                  <button className="btn btn-secondary" style={{ padding: '0.6rem 1rem' }} onClick={() => { setMilkLogType('bulk'); setShowLogMilkModal(true); }}>
+                    🥛 Bulk Log
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {milkLogs.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '4rem 1rem', background: 'var(--bg-card)', borderRadius: 'var(--radius-md)', border: '1px dashed var(--border)' }}>
+                <p style={{ fontSize: '3rem', margin: '0 0 1rem 0' }}>🥛</p>
+                <h3 style={{ fontSize: '1.2rem', color: 'var(--text)', marginBottom: '0.5rem' }}>No Milk Logs Yet</h3>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Start logging milk yields to track production over time.</p>
+              </div>
+            ) : (
+              <div className="card">
+                {milkLogs.map((log, index) => (
+                  <div key={log.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', borderBottom: index < milkLogs.length - 1 ? '1px solid var(--border)' : 'none' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                      <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: log.session === 'morning' ? 'var(--primary-glow)' : 'var(--secondary-glow)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem' }}>
+                        {log.session === 'morning' ? '🌅' : '🌇'}
+                      </div>
+                      <div>
+                        <h4 style={{ fontWeight: '600', fontSize: '1rem' }}>{log.cattleName ? `${log.cattleName} (${log.cattleTag})` : 'Bulk Herd Session'}</h4>
+                        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                          {new Date(log.logDate).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })} &bull; {log.session.charAt(0).toUpperCase() + log.session.slice(1)} &bull; By {log.recordedBy.split(' ')[0]}
+                        </p>
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <span style={{ fontSize: '1.2rem', fontWeight: '700', color: 'var(--text)' }}>{log.quantityLiters}L</span>
+                      {(log.fatPercentage || log.snfPercentage) && (
+                        <p style={{ fontSize: '0.75rem', color: 'var(--info)', marginTop: '0.2rem' }}>
+                          Fat: {log.fatPercentage || '-'}% &bull; SNF: {log.snfPercentage || '-'}%
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ========================================================
             TAB: CATTLE INVENTORY
             ======================================================== */}
         {activeTab === 'cattle' && (
@@ -1780,16 +1827,26 @@ function App() {
           onClick={() => setActiveTab('dashboard')} 
           className={`bottom-nav-item ${activeTab === 'dashboard' ? 'active' : ''}`}
         >
-          <Layers size={20} />
-          <span>Dashboard</span>
+          <Activity size={20} />
+          <span>Dash</span>
         </button>
+        
         <button 
           onClick={() => setActiveTab('cattle')} 
           className={`bottom-nav-item ${activeTab === 'cattle' ? 'active' : ''}`}
         >
-          <Activity size={20} />
+          <Layers size={20} />
           <span>Cattle</span>
         </button>
+
+        <button 
+          onClick={() => setActiveTab('milk')} 
+          className={`bottom-nav-item ${activeTab === 'milk' ? 'active' : ''}`}
+        >
+          <Droplet size={20} />
+          <span>Milk</span>
+        </button>
+        
         <button 
           onClick={() => setActiveTab('financials')} 
           className={`bottom-nav-item ${activeTab === 'financials' ? 'active' : ''}`}
@@ -1797,12 +1854,13 @@ function App() {
           <DollarSign size={20} />
           <span>Ledger</span>
         </button>
+        
         <button 
           onClick={() => setActiveTab('health')} 
           className={`bottom-nav-item ${activeTab === 'health' ? 'active' : ''}`}
         >
-          <Calendar size={20} />
-          <span>Vaccines</span>
+          <Stethoscope size={20} />
+          <span>Vet</span>
         </button>
       </nav>
 

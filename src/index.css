@@ -399,7 +399,7 @@ button, input, select, textarea {
   background: var(--bg-card);
   border-top: 1px solid var(--border);
   display: none;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   padding: 0.5rem 0 calc(0.5rem + env(safe-area-inset-bottom));
   z-index: 99;
   box-shadow: 0 -2px 12px rgba(46, 58, 36, 0.08);
