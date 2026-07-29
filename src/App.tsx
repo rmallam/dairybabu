@@ -2117,7 +2117,7 @@ function App() {
                     )}</span>
                   </p>
                   <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.35rem', fontStyle: 'italic', lineHeight: '1.3' }}>
-                    * Dodla Cooperative Payout Formula: (Fat% × ₹5.20) + (SNF% × ₹2.80) per Liter. Auto-records to cash ledger.
+                    * Payout Formula: (Fat% × ₹{fatPriceInput || '5.20'}) + (SNF% × ₹{snfPriceInput || '2.80'}) per Liter. Base flat rate is ₹48/L if Fat/SNF are not provided.
                   </p>
                 </div>
               )}
