@@ -34,6 +34,7 @@ function App() {
     farmName: '',
     location: '',
     managerName: '',
+    ownerPhone: '',
   });
 
   // Active Farm Code ID (SaaS Multi-Tenancy Gateway)
@@ -43,6 +44,13 @@ function App() {
   
   // Forgot Code Recovery States
   const [showFarmFinder, setShowFarmFinder] = useState(false);
+  
+  // Owner PIN Recovery States
+  const [showOwnerPinReset, setShowOwnerPinReset] = useState(false);
+  const [resetOwnerCodeInput, setResetOwnerCodeInput] = useState('');
+  const [resetOwnerPhoneInput, setResetOwnerPhoneInput] = useState('');
+  const [resetOwnerNewPinInput, setResetOwnerNewPinInput] = useState('');
+  const [resetOwnerError, setResetOwnerError] = useState('');
   const [farmFinderSearch, setFarmFinderSearch] = useState('');
   const [farmFinderResults, setFarmFinderResults] = useState<{ id: string, name: string, location: string, ownerName: string }[]>([]);
 
@@ -220,6 +228,44 @@ function App() {
     setLoginError('');
   };
 
+  const handleResetOwnerPinSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetOwnerCodeInput.trim() || !resetOwnerPhoneInput.trim() || !resetOwnerNewPinInput.trim()) return;
+
+    setResetOwnerError('');
+    const code = resetOwnerCodeInput.trim();
+    const phone = resetOwnerPhoneInput.trim();
+    const pin = resetOwnerNewPinInput.trim();
+
+    if (code !== activeFarmId) {
+      setResetOwnerError('Incorrect Farm Access Code.');
+      return;
+    }
+
+    const ownerProfile = profiles.find(p => p.role === 'owner');
+    if (!ownerProfile || ownerProfile.phoneNumber.replace(/\s+/g, '') !== phone.replace(/\s+/g, '')) {
+      setResetOwnerError('Incorrect registered Owner Phone Number.');
+      return;
+    }
+
+    if (pin.length !== 4 || !/^\d+$/.test(pin)) {
+      setResetOwnerError('Security PIN must be exactly 4 digits.');
+      return;
+    }
+
+    await db.resetOwnerPin(code, pin);
+    alert('Owner PIN reset successfully! Please log in using your new PIN.');
+    
+    // Clear state
+    setResetOwnerCodeInput('');
+    setResetOwnerPhoneInput('');
+    setResetOwnerNewPinInput('');
+    setResetOwnerError('');
+    setShowOwnerPinReset(false);
+    
+    await refreshData();
+  };
+
   const handleFarmSearchChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setFarmFinderSearch(val);
@@ -233,12 +279,13 @@ function App() {
 
   const handleRegisterFarmSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!registerForm.farmName || !registerForm.ownerName || !registerForm.managerName) return;
+    if (!registerForm.farmName || !registerForm.ownerName || !registerForm.managerName || !registerForm.ownerPhone) return;
 
     const result = await db.createFarm(
       registerForm.farmName,
       registerForm.location,
       registerForm.ownerName,
+      registerForm.ownerPhone,
       registerForm.managerName
     );
 
@@ -248,7 +295,7 @@ function App() {
     setActiveProfile(result.profiles[0]); // Logs in as new Owner
     setIsLoggedIn(true);
     setShowRegisterFarm(false);
-    setRegisterForm({ ownerName: '', farmName: '', location: '', managerName: '' });
+    setRegisterForm({ ownerName: '', farmName: '', location: '', managerName: '', ownerPhone: '' });
     await refreshData();
   };
 
@@ -532,6 +579,19 @@ function App() {
                 </div>
 
                 <div className="form-group">
+                  <label>Owner Phone Number * (For PIN Recovery)</label>
+                  <input 
+                    type="tel" 
+                    className="form-control" 
+                    required 
+                    placeholder="e.g. +61 412 345 678"
+                    value={registerForm.ownerPhone}
+                    onChange={e => setRegisterForm(prev => ({ ...prev, ownerPhone: e.target.value }))}
+                    autoComplete="off"
+                  />
+                </div>
+
+                <div className="form-group">
                   <label>Manager Name *</label>
                   <input 
                     type="text" 
@@ -701,6 +761,83 @@ function App() {
                 </form>
               </div>
             )
+          ) : showOwnerPinReset ? (
+            <div>
+              <h2 style={{ fontSize: '1.6rem', marginBottom: '0.25rem', fontFamily: 'var(--font-title)' }}>Reset Owner PIN 🔑</h2>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginBottom: '1.5rem' }}>Verify your details to set a new owner security PIN.</p>
+
+              <form onSubmit={handleResetOwnerPinSubmit} style={{ textAlign: 'left' }}>
+                <div className="form-group">
+                  <label htmlFor="reset-code-input">Farm Access Code *</label>
+                  <input 
+                    id="reset-code-input"
+                    type="text" 
+                    className="form-control" 
+                    required 
+                    placeholder="e.g. farm-khammam-001"
+                    value={resetOwnerCodeInput}
+                    onChange={e => setResetOwnerCodeInput(e.target.value)}
+                    autoComplete="off"
+                  />
+                </div>
+
+                <div className="form-group" style={{ marginTop: '0.5rem' }}>
+                  <label htmlFor="reset-phone-input">Owner Registered Phone *</label>
+                  <input 
+                    id="reset-phone-input"
+                    type="tel" 
+                    className="form-control" 
+                    required 
+                    placeholder="e.g. +61 412 345 678"
+                    value={resetOwnerPhoneInput}
+                    onChange={e => setResetOwnerPhoneInput(e.target.value)}
+                    autoComplete="off"
+                  />
+                </div>
+
+                <div className="form-group" style={{ marginTop: '0.5rem' }}>
+                  <label htmlFor="reset-pin-input">New 4-Digit Owner PIN *</label>
+                  <input 
+                    id="reset-pin-input"
+                    type="password" 
+                    maxLength={4}
+                    className="form-control" 
+                    required 
+                    placeholder="••••"
+                    style={{ letterSpacing: '0.5em', fontSize: '1.1rem' }}
+                    value={resetOwnerNewPinInput}
+                    onChange={e => setResetOwnerNewPinInput(e.target.value)}
+                  />
+                </div>
+
+                {resetOwnerError && (
+                  <p style={{ color: 'var(--danger)', fontSize: '0.75rem', marginTop: '0.5rem' }}>
+                    ⚠️ {resetOwnerError}
+                  </p>
+                )}
+
+                <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1.5rem', padding: '0.8rem' }}>
+                  Reset Owner PIN
+                </button>
+                
+                <div style={{ marginTop: '0.75rem' }}>
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      setShowOwnerPinReset(false);
+                      setResetOwnerCodeInput('');
+                      setResetOwnerPhoneInput('');
+                      setResetOwnerNewPinInput('');
+                      setResetOwnerError('');
+                    }}
+                    className="btn btn-secondary" 
+                    style={{ width: '100%', padding: '0.5rem', fontSize: '0.8rem' }}
+                  >
+                    Back to Log In
+                  </button>
+                </div>
+              </form>
+            </div>
           ) : (
             <div>
               <h2 style={{ fontSize: '1.8rem', marginBottom: '0.25rem', fontFamily: 'var(--font-title)' }}>OurDairy 🐄</h2>
@@ -732,7 +869,17 @@ function App() {
                 </div>
 
                 <div className="form-group" style={{ textAlign: 'left' }}>
-                  <label htmlFor="pin-input">Enter Security PIN</label>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                    <label htmlFor="pin-input" style={{ marginBottom: 0 }}>Enter Security PIN</label>
+                    {loginRole === 'owner' && (
+                      <span 
+                        onClick={() => setShowOwnerPinReset(true)} 
+                        style={{ fontSize: '0.75rem', color: 'var(--primary)', textDecoration: 'underline', cursor: 'pointer', fontWeight: '600' }}
+                      >
+                        Forgot PIN?
+                      </span>
+                    )}
+                  </div>
                   <div style={{ position: 'relative' }}>
                     <Lock size={16} style={{ position: 'absolute', left: '12px', top: '13px', color: 'var(--text-muted)' }} />
                     <input 

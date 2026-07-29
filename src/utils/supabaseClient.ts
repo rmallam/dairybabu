@@ -174,7 +174,7 @@ export const db = {
     return farm;
   },
 
-  createFarm: async (farmName: string, location: string, ownerName: string, managerName: string): Promise<{ farm: Farm, profiles: Profile[] }> => {
+  createFarm: async (farmName: string, location: string, ownerName: string, ownerPhone: string, managerName: string): Promise<{ farm: Farm, profiles: Profile[] }> => {
     const farmId = `farm-${Date.now()}`;
     const newFarm: Farm = {
       id: farmId,
@@ -191,7 +191,7 @@ export const db = {
         farmId,
         role: 'owner',
         fullName: ownerName,
-        phoneNumber: '+91 99999 88888',
+        phoneNumber: ownerPhone || '+91 99999 88888',
         securityPin: '0000',
         createdAt: new Date().toISOString(),
       },
@@ -272,6 +272,32 @@ export const db = {
       localStorage.setItem(STORAGE_KEYS.ACTIVE_PROFILE, JSON.stringify(manager));
     }
     return list;
+  },
+
+  resetOwnerPin: async (farmId: string, newPin: string): Promise<void> => {
+    if (isLiveDb && supabase) {
+      const { data: owner } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('farm_id', farmId)
+        .eq('role', 'owner')
+        .maybeSingle();
+      
+      if (owner) {
+        await supabase
+          .from('profiles')
+          .update({ security_pin: newPin })
+          .eq('id', owner.id);
+      }
+      return;
+    }
+
+    const list: Profile[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.PROFILES) || '[]');
+    const owner = list.find(p => p.role === 'owner' && p.farmId === farmId);
+    if (owner) {
+      owner.securityPin = newPin;
+      localStorage.setItem(STORAGE_KEYS.PROFILES, JSON.stringify(list));
+    }
   },
 
   resetToDemo: async (): Promise<void> => {
