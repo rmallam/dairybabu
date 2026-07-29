@@ -629,7 +629,7 @@ function App() {
                     type="text" 
                     className="form-control" 
                     required 
-                    placeholder="e.g. Rakesh Kumar"
+                    placeholder="e.g. John Doe"
                     value={registerForm.ownerName}
                     onChange={e => setRegisterForm(prev => ({ ...prev, ownerName: e.target.value }))}
                     autoComplete="off"
@@ -655,7 +655,7 @@ function App() {
                     type="text" 
                     className="form-control" 
                     required 
-                    placeholder="e.g. Gopal"
+                    placeholder="e.g. Jane Smith"
                     value={registerForm.managerName}
                     onChange={e => setRegisterForm(prev => ({ ...prev, managerName: e.target.value }))}
                     autoComplete="off"

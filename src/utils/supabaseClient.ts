@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Farm, Profile, Cattle, MilkLog, HealthLog, Transaction } from '../types';
-import { DEFAULT_FARM, MOCK_PROFILES, INITIAL_CATTLE, INITIAL_MILK_LOGS, INITIAL_HEALTH_LOGS, INITIAL_TRANSACTIONS } from './mockData';
+// Removed unused mockData imports
 
 // Fetch credentials from Vite env
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
@@ -21,26 +21,24 @@ const STORAGE_KEYS = {
 
 // Initialize local storage fallback
 const initializeLocalDB = () => {
+  // We no longer seed demo data to allow a clean slate experience.
   if (!localStorage.getItem(STORAGE_KEYS.FARM)) {
-    localStorage.setItem(STORAGE_KEYS.FARM, JSON.stringify(DEFAULT_FARM));
+    // Leave it null so the app knows there is no farm yet
   }
   if (!localStorage.getItem(STORAGE_KEYS.PROFILES)) {
-    localStorage.setItem(STORAGE_KEYS.PROFILES, JSON.stringify(MOCK_PROFILES));
+    localStorage.setItem(STORAGE_KEYS.PROFILES, JSON.stringify([]));
   }
   if (!localStorage.getItem(STORAGE_KEYS.CATTLE)) {
-    localStorage.setItem(STORAGE_KEYS.CATTLE, JSON.stringify(INITIAL_CATTLE));
+    localStorage.setItem(STORAGE_KEYS.CATTLE, JSON.stringify([]));
   }
   if (!localStorage.getItem(STORAGE_KEYS.MILK_LOGS)) {
-    localStorage.setItem(STORAGE_KEYS.MILK_LOGS, JSON.stringify(INITIAL_MILK_LOGS));
+    localStorage.setItem(STORAGE_KEYS.MILK_LOGS, JSON.stringify([]));
   }
   if (!localStorage.getItem(STORAGE_KEYS.HEALTH_LOGS)) {
-    localStorage.setItem(STORAGE_KEYS.HEALTH_LOGS, JSON.stringify(INITIAL_HEALTH_LOGS));
+    localStorage.setItem(STORAGE_KEYS.HEALTH_LOGS, JSON.stringify([]));
   }
   if (!localStorage.getItem(STORAGE_KEYS.TRANSACTIONS)) {
-    localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(INITIAL_TRANSACTIONS));
-  }
-  if (!localStorage.getItem(STORAGE_KEYS.ACTIVE_PROFILE)) {
-    localStorage.setItem(STORAGE_KEYS.ACTIVE_PROFILE, JSON.stringify(MOCK_PROFILES[0]));
+    localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify([]));
   }
 };
 
