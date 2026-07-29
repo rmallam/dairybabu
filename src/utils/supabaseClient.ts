@@ -1,30 +1,26 @@
-import type { Cattle, MilkLog, HealthLog, Transaction, Profile, Farm } from '../types';
-import { 
-  DEFAULT_FARM, 
-  MOCK_PROFILES, 
-  INITIAL_CATTLE, 
-  INITIAL_MILK_LOGS, 
-  INITIAL_HEALTH_LOGS, 
-  INITIAL_TRANSACTIONS 
-} from './mockData';
+import { createClient } from '@supabase/supabase-js';
+import type { Farm, Profile, Cattle, MilkLog, HealthLog, Transaction } from '../types';
+import { DEFAULT_FARM, MOCK_PROFILES, INITIAL_CATTLE, INITIAL_MILK_LOGS, INITIAL_HEALTH_LOGS, INITIAL_TRANSACTIONS } from './mockData';
 
-// This acts as a mock database engine using localStorage
-// Under the hood, this is structurally identical to Supabase's schemas.
-// When the owner is ready to deploy to a real database, they can simply swap these functions
-// to call supabase.from('table').select(...) with zero changes to UI components.
+// Fetch credentials from Vite env
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+
+export const isLiveDb = !!(supabaseUrl && supabaseAnonKey);
+export const supabase = isLiveDb ? createClient(supabaseUrl, supabaseAnonKey) : null;
 
 const STORAGE_KEYS = {
-  FARM: 'df_farm',
-  PROFILES: 'df_profiles',
-  CATTLE: 'df_cattle',
-  MILK_LOGS: 'df_milk_logs',
-  HEALTH_LOGS: 'df_health_logs',
-  TRANSACTIONS: 'df_transactions',
-  ACTIVE_PROFILE: 'df_active_profile',
+  FARM: 'dairybabu_farm',
+  PROFILES: 'dairybabu_profiles',
+  CATTLE: 'dairybabu_cattle',
+  MILK_LOGS: 'dairybabu_milk_logs',
+  HEALTH_LOGS: 'dairybabu_health_logs',
+  TRANSACTIONS: 'dairybabu_transactions',
+  ACTIVE_PROFILE: 'dairybabu_active_profile',
 };
 
-// Helper to initialize local storage if empty
-const initializeDB = () => {
+// Initialize local storage fallback
+const initializeLocalDB = () => {
   if (!localStorage.getItem(STORAGE_KEYS.FARM)) {
     localStorage.setItem(STORAGE_KEYS.FARM, JSON.stringify(DEFAULT_FARM));
   }
@@ -44,48 +40,45 @@ const initializeDB = () => {
     localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(INITIAL_TRANSACTIONS));
   }
   if (!localStorage.getItem(STORAGE_KEYS.ACTIVE_PROFILE)) {
-    localStorage.setItem(STORAGE_KEYS.ACTIVE_PROFILE, JSON.stringify(MOCK_PROFILES[0])); // Default is Owner
+    localStorage.setItem(STORAGE_KEYS.ACTIVE_PROFILE, JSON.stringify(MOCK_PROFILES[0]));
   }
 };
 
-initializeDB();
+initializeLocalDB();
 
 export const db = {
   // Farm & Profile APIs
-  getFarm: (): Farm => {
+  getFarm: async (): Promise<Farm> => {
+    if (isLiveDb && supabase) {
+      const { data, error } = await supabase.from('farms').select('*').limit(1).maybeSingle();
+      if (!error && data) return data;
+      
+      // If live but empty, seed DEFAULT_FARM
+      const { data: seeded } = await supabase.from('farms').insert([DEFAULT_FARM]).select().single();
+      if (seeded) return seeded;
+    }
     return JSON.parse(localStorage.getItem(STORAGE_KEYS.FARM) || '{}');
   },
   
-  updateFarm: (name: string, location: string): Farm => {
-    const farm = db.getFarm();
+  updateFarm: async (name: string, location: string): Promise<Farm> => {
+    if (isLiveDb && supabase) {
+      const farm = await db.getFarm();
+      const { data } = await supabase
+        .from('farms')
+        .update({ name, location })
+        .eq('id', farm.id)
+        .select()
+        .single();
+      if (data) return data;
+    }
+    const farm = JSON.parse(localStorage.getItem(STORAGE_KEYS.FARM) || '{}');
     farm.name = name;
     farm.location = location;
     localStorage.setItem(STORAGE_KEYS.FARM, JSON.stringify(farm));
     return farm;
   },
 
-  updateProfiles: (ownerName: string, managerName: string, managerPin?: string): Profile[] => {
-    const list: Profile[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.PROFILES) || '[]');
-    const owner = list.find(p => p.role === 'owner');
-    const manager = list.find(p => p.role === 'manager');
-    if (owner) owner.fullName = ownerName;
-    if (manager) {
-      manager.fullName = managerName;
-      if (managerPin) manager.securityPin = managerPin;
-    }
-    localStorage.setItem(STORAGE_KEYS.PROFILES, JSON.stringify(list));
-    
-    // Update active profile copy as well if it matches
-    const active = JSON.parse(localStorage.getItem(STORAGE_KEYS.ACTIVE_PROFILE) || '{}');
-    if (active.role === 'owner' && owner) {
-      localStorage.setItem(STORAGE_KEYS.ACTIVE_PROFILE, JSON.stringify(owner));
-    } else if (active.role === 'manager' && manager) {
-      localStorage.setItem(STORAGE_KEYS.ACTIVE_PROFILE, JSON.stringify(manager));
-    }
-    return list;
-  },
-
-  createFarm: (farmName: string, location: string, ownerName: string): { farm: Farm, profiles: Profile[] } => {
+  createFarm: async (farmName: string, location: string, ownerName: string): Promise<{ farm: Farm, profiles: Profile[] }> => {
     const farmId = `farm-${Date.now()}`;
     const newFarm: Farm = {
       id: farmId,
@@ -117,11 +110,17 @@ export const db = {
       }
     ];
 
+    if (isLiveDb && supabase) {
+      await supabase.from('farms').insert([newFarm]);
+      await supabase.from('profiles').insert(newProfiles);
+      // Clean lists for the new farm tenant in the cloud
+      return { farm: newFarm, profiles: newProfiles };
+    }
+
     localStorage.setItem(STORAGE_KEYS.FARM, JSON.stringify(newFarm));
     localStorage.setItem(STORAGE_KEYS.PROFILES, JSON.stringify(newProfiles));
     localStorage.setItem(STORAGE_KEYS.ACTIVE_PROFILE, JSON.stringify(newProfiles[0]));
     
-    // Clear lists for the new farm tenant
     localStorage.setItem(STORAGE_KEYS.CATTLE, JSON.stringify([]));
     localStorage.setItem(STORAGE_KEYS.MILK_LOGS, JSON.stringify([]));
     localStorage.setItem(STORAGE_KEYS.HEALTH_LOGS, JSON.stringify([]));
@@ -130,7 +129,52 @@ export const db = {
     return { farm: newFarm, profiles: newProfiles };
   },
 
-  resetToDemo: (): void => {
+  updateProfiles: async (ownerName: string, managerName: string, managerPin?: string): Promise<Profile[]> => {
+    if (isLiveDb && supabase) {
+      const list = await db.getProfiles();
+      const owner = list.find(p => p.role === 'owner');
+      const manager = list.find(p => p.role === 'manager');
+      
+      if (owner) {
+        await supabase.from('profiles').update({ fullName: ownerName }).eq('id', owner.id);
+      }
+      if (manager) {
+        const updateData: Partial<Profile> = { fullName: managerName };
+        if (managerPin) updateData.securityPin = managerPin;
+        await supabase.from('profiles').update(updateData).eq('id', manager.id);
+      }
+      return db.getProfiles();
+    }
+
+    const list: Profile[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.PROFILES) || '[]');
+    const owner = list.find(p => p.role === 'owner');
+    const manager = list.find(p => p.role === 'manager');
+    if (owner) owner.fullName = ownerName;
+    if (manager) {
+      manager.fullName = managerName;
+      if (managerPin) manager.securityPin = managerPin;
+    }
+    localStorage.setItem(STORAGE_KEYS.PROFILES, JSON.stringify(list));
+    
+    const active = JSON.parse(localStorage.getItem(STORAGE_KEYS.ACTIVE_PROFILE) || '{}');
+    if (active.role === 'owner' && owner) {
+      localStorage.setItem(STORAGE_KEYS.ACTIVE_PROFILE, JSON.stringify(owner));
+    } else if (active.role === 'manager' && manager) {
+      localStorage.setItem(STORAGE_KEYS.ACTIVE_PROFILE, JSON.stringify(manager));
+    }
+    return list;
+  },
+
+  resetToDemo: async (): Promise<void> => {
+    if (isLiveDb && supabase) {
+      const farm = await db.getFarm();
+      await supabase.from('cattle').delete().eq('farm_id', farm.id);
+      await supabase.from('milk_logs').delete().eq('farm_id', farm.id);
+      await supabase.from('health_logs').delete().eq('farm_id', farm.id);
+      await supabase.from('transactions').delete().eq('farm_id', farm.id);
+      await supabase.from('profiles').delete().eq('farm_id', farm.id);
+      await supabase.from('farms').delete().eq('id', farm.id);
+    }
     localStorage.removeItem(STORAGE_KEYS.FARM);
     localStorage.removeItem(STORAGE_KEYS.PROFILES);
     localStorage.removeItem(STORAGE_KEYS.CATTLE);
@@ -138,46 +182,98 @@ export const db = {
     localStorage.removeItem(STORAGE_KEYS.HEALTH_LOGS);
     localStorage.removeItem(STORAGE_KEYS.TRANSACTIONS);
     localStorage.removeItem(STORAGE_KEYS.ACTIVE_PROFILE);
-    initializeDB();
+    initializeLocalDB();
   },
   
-  getProfiles: (): Profile[] => {
+  getProfiles: async (): Promise<Profile[]> => {
+    if (isLiveDb && supabase) {
+      const farm = await db.getFarm();
+      const { data } = await supabase.from('profiles').select('*').eq('farm_id', farm.id);
+      if (data && data.length > 0) return data;
+      
+      // If live but empty profiles, seed them
+      await supabase.from('profiles').insert(MOCK_PROFILES.map(p => ({ ...p, farm_id: farm.id })));
+      return MOCK_PROFILES;
+    }
     return JSON.parse(localStorage.getItem(STORAGE_KEYS.PROFILES) || '[]');
   },
   
-  getActiveProfile: (): Profile => {
+  getActiveProfile: async (): Promise<Profile> => {
     return JSON.parse(localStorage.getItem(STORAGE_KEYS.ACTIVE_PROFILE) || '{}');
   },
   
-  setActiveProfile: (profile: Profile): void => {
+  setActiveProfile: async (profile: Profile): Promise<void> => {
     localStorage.setItem(STORAGE_KEYS.ACTIVE_PROFILE, JSON.stringify(profile));
   },
 
   // Cattle APIs
-  getCattle: (): Cattle[] => {
+  getCattle: async (): Promise<Cattle[]> => {
+    if (isLiveDb && supabase) {
+      const farm = await db.getFarm();
+      const { data } = await supabase.from('cattle').select('*').eq('farm_id', farm.id);
+      if (data) {
+        // Map postgres snake_case to camelCase
+        const mapped = data.map(c => ({
+          id: c.id,
+          farmId: c.farm_id,
+          tagNumber: c.tag_number,
+          name: c.name,
+          breed: c.breed,
+          status: c.status,
+          birthDate: c.birth_date,
+          purchaseDate: c.purchase_date,
+          purchaseCost: c.purchase_cost ? parseFloat(c.purchase_cost) : undefined,
+          notes: c.notes,
+          createdAt: c.created_at
+        }));
+        return mapped.sort((a, b) => a.tagNumber.localeCompare(b.tagNumber));
+      }
+    }
     const list: Cattle[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.CATTLE) || '[]');
     return list.sort((a, b) => a.tagNumber.localeCompare(b.tagNumber));
   },
   
-  saveCattle: (cow: Omit<Cattle, 'id' | 'farmId' | 'createdAt'> & { id?: string }): Cattle => {
-    const list = db.getCattle();
-    const activeFarm = db.getFarm();
+  saveCattle: async (cow: Omit<Cattle, 'id' | 'farmId' | 'createdAt'> & { id?: string }): Promise<Cattle> => {
+    const activeFarm = await db.getFarm();
+    const id = cow.id || `cattle-${Date.now()}`;
     
+    const dbCow = {
+      id,
+      farm_id: activeFarm.id,
+      tag_number: cow.tagNumber,
+      name: cow.name,
+      breed: cow.breed,
+      status: cow.status,
+      birth_date: cow.birthDate || null,
+      purchase_date: cow.purchaseDate || null,
+      purchase_cost: cow.purchaseCost || null,
+      notes: cow.notes
+    };
+
+    if (isLiveDb && supabase) {
+      if (cow.id) {
+        await supabase.from('cattle').update(dbCow).eq('id', cow.id);
+      } else {
+        await supabase.from('cattle').insert([dbCow]);
+      }
+      const list = await db.getCattle();
+      return list.find(c => c.id === id) as Cattle;
+    }
+
+    const list = await db.getCattle();
     const newCow: Cattle = {
       ...cow,
-      id: cow.id || `cattle-${Date.now()}`,
+      id,
       farmId: activeFarm.id,
       createdAt: new Date().toISOString(),
     };
     
     if (cow.id) {
-      // Edit mode
       const idx = list.findIndex(c => c.id === cow.id);
       if (idx !== -1) {
         list[idx] = { ...list[idx], ...cow } as Cattle;
       }
     } else {
-      // Add mode
       list.push(newCow);
     }
     
@@ -185,25 +281,71 @@ export const db = {
     return newCow;
   },
   
-  deleteCattle: (id: string): void => {
-    const list = db.getCattle();
+  deleteCattle: async (id: string): Promise<void> => {
+    if (isLiveDb && supabase) {
+      await supabase.from('cattle').delete().eq('id', id);
+      return;
+    }
+    const list = await db.getCattle();
     const updated = list.filter(c => c.id !== id);
     localStorage.setItem(STORAGE_KEYS.CATTLE, JSON.stringify(updated));
   },
 
   // Milk Log APIs
-  getMilkLogs: (): MilkLog[] => {
+  getMilkLogs: async (): Promise<MilkLog[]> => {
+    if (isLiveDb && supabase) {
+      const farm = await db.getFarm();
+      const { data } = await supabase.from('milk_logs').select('*').eq('farm_id', farm.id);
+      if (data) {
+        const mapped = data.map(l => ({
+          id: l.id,
+          farmId: l.farm_id,
+          cattleId: l.cattle_id,
+          cattleName: l.cattle_name,
+          cattleTag: l.cattle_tag,
+          logDate: l.log_date,
+          session: l.session,
+          quantityLiters: parseFloat(l.quantity_liters),
+          fatPercentage: l.fat_percentage ? parseFloat(l.fat_percentage) : undefined,
+          snfPercentage: l.snf_percentage ? parseFloat(l.snf_percentage) : undefined,
+          recordedBy: l.recorded_by,
+          createdAt: l.created_at
+        }));
+        return mapped.sort((a, b) => new Date(b.logDate).getTime() - new Date(a.logDate).getTime());
+      }
+    }
     const list: MilkLog[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.MILK_LOGS) || '[]');
     return list.sort((a, b) => new Date(b.logDate).getTime() - new Date(a.logDate).getTime());
   },
   
-  saveMilkLog: (log: Omit<MilkLog, 'id' | 'farmId' | 'createdAt'>): MilkLog => {
-    const list = db.getMilkLogs();
-    const activeFarm = db.getFarm();
+  saveMilkLog: async (log: Omit<MilkLog, 'id' | 'farmId' | 'createdAt'>): Promise<MilkLog> => {
+    const activeFarm = await db.getFarm();
+    const id = `milk-${Date.now()}`;
     
+    const dbLog = {
+      id,
+      farm_id: activeFarm.id,
+      cattle_id: log.cattleId || null,
+      cattle_name: log.cattleName || null,
+      cattle_tag: log.cattleTag || null,
+      log_date: log.logDate,
+      session: log.session,
+      quantity_liters: log.quantityLiters,
+      fat_percentage: log.fatPercentage || null,
+      snf_percentage: log.snfPercentage || null,
+      recorded_by: log.recordedBy
+    };
+
+    if (isLiveDb && supabase) {
+      await supabase.from('milk_logs').insert([dbLog]);
+      const list = await db.getMilkLogs();
+      return list.find(m => m.id === id) as MilkLog;
+    }
+
+    const list = await db.getMilkLogs();
     const newLog: MilkLog = {
       ...log,
-      id: `milk-${Date.now()}`,
+      id,
       farmId: activeFarm.id,
       createdAt: new Date().toISOString(),
     };
@@ -213,33 +355,91 @@ export const db = {
     return newLog;
   },
   
-  deleteMilkLog: (id: string): void => {
-    const list = db.getMilkLogs();
+  deleteMilkLog: async (id: string): Promise<void> => {
+    if (isLiveDb && supabase) {
+      await supabase.from('milk_logs').delete().eq('id', id);
+      return;
+    }
+    const list = await db.getMilkLogs();
     const updated = list.filter(l => l.id !== id);
     localStorage.setItem(STORAGE_KEYS.MILK_LOGS, JSON.stringify(updated));
   },
 
   // Health Log APIs
-  getHealthLogs: (): HealthLog[] => {
+  getHealthLogs: async (): Promise<HealthLog[]> => {
+    if (isLiveDb && supabase) {
+      const farm = await db.getFarm();
+      const { data } = await supabase.from('health_logs').select('*').eq('farm_id', farm.id);
+      if (data) {
+        const mapped = data.map(h => ({
+          id: h.id,
+          farmId: h.farm_id,
+          cattleId: h.cattle_id,
+          cattleName: h.cattle_name,
+          cattleTag: h.cattle_tag,
+          treatmentType: h.treatment_type,
+          title: h.title,
+          administeredDate: h.administered_date,
+          nextDueDate: h.next_due_date,
+          cost: parseFloat(h.cost),
+          performedBy: h.performed_by,
+          status: h.status,
+          notes: h.notes,
+          createdAt: h.created_at
+        }));
+        return mapped.sort((a, b) => {
+          if (a.status === 'scheduled' && b.status !== 'scheduled') return -1;
+          if (a.status !== 'scheduled' && b.status === 'scheduled') return 1;
+          const dateA = a.nextDueDate || a.administeredDate || '';
+          const dateB = b.nextDueDate || b.administeredDate || '';
+          return new Date(dateB).getTime() - new Date(dateA).getTime();
+        });
+      }
+    }
     const list: HealthLog[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.HEALTH_LOGS) || '[]');
     return list.sort((a, b) => {
-      // Scheduled ones first, then by date descending
       if (a.status === 'scheduled' && b.status !== 'scheduled') return -1;
       if (a.status !== 'scheduled' && b.status === 'scheduled') return 1;
-      
       const dateA = a.nextDueDate || a.administeredDate || '';
       const dateB = b.nextDueDate || b.administeredDate || '';
       return new Date(dateB).getTime() - new Date(dateA).getTime();
     });
   },
   
-  saveHealthLog: (log: Omit<HealthLog, 'id' | 'farmId' | 'createdAt'> & { id?: string }): HealthLog => {
-    const list = db.getHealthLogs();
-    const activeFarm = db.getFarm();
+  saveHealthLog: async (log: Omit<HealthLog, 'id' | 'farmId' | 'createdAt'> & { id?: string }): Promise<HealthLog> => {
+    const activeFarm = await db.getFarm();
+    const id = log.id || `health-${Date.now()}`;
     
+    const dbLog = {
+      id,
+      farm_id: activeFarm.id,
+      cattle_id: log.cattleId,
+      cattle_name: log.cattleName,
+      cattle_tag: log.cattleTag,
+      treatment_type: log.treatmentType,
+      title: log.title,
+      administered_date: log.administeredDate || null,
+      next_due_date: log.nextDueDate || null,
+      cost: log.cost,
+      performed_by: log.performedBy || null,
+      status: log.status,
+      notes: log.notes
+    };
+
+    if (isLiveDb && supabase) {
+      if (log.id) {
+        await supabase.from('health_logs').update(dbLog).eq('id', log.id);
+      } else {
+        await supabase.from('health_logs').insert([dbLog]);
+      }
+      const list = await db.getHealthLogs();
+      return list.find(h => h.id === id) as HealthLog;
+    }
+
+    const list = await db.getHealthLogs();
     const newLog: HealthLog = {
       ...log,
-      id: log.id || `health-${Date.now()}`,
+      id,
       farmId: activeFarm.id,
       createdAt: new Date().toISOString(),
     } as HealthLog;
@@ -257,8 +457,14 @@ export const db = {
     return newLog;
   },
   
-  updateHealthStatus: (id: string, status: 'completed' | 'missed', administeredDate?: string): void => {
-    const list = db.getHealthLogs();
+  updateHealthStatus: async (id: string, status: 'completed' | 'missed', administeredDate?: string): Promise<void> => {
+    if (isLiveDb && supabase) {
+      const updateData: any = { status };
+      if (administeredDate) updateData.administered_date = administeredDate;
+      await supabase.from('health_logs').update(updateData).eq('id', id);
+      return;
+    }
+    const list = await db.getHealthLogs();
     const idx = list.findIndex(l => l.id === id);
     if (idx !== -1) {
       list[idx].status = status;
@@ -270,18 +476,58 @@ export const db = {
   },
 
   // Transaction APIs
-  getTransactions: (): Transaction[] => {
+  getTransactions: async (): Promise<Transaction[]> => {
+    if (isLiveDb && supabase) {
+      const farm = await db.getFarm();
+      const { data } = await supabase.from('transactions').select('*').eq('farm_id', farm.id);
+      if (data) {
+        const mapped = data.map(t => ({
+          id: t.id,
+          farmId: t.farm_id,
+          type: t.type,
+          category: t.category,
+          amount: parseFloat(t.amount),
+          transactionDate: t.transaction_date,
+          paymentMethod: t.payment_method,
+          receiptUrl: t.receipt_url,
+          notes: t.notes,
+          recordedBy: t.recorded_by,
+          createdAt: t.created_at
+        }));
+        return mapped.sort((a, b) => new Date(b.transactionDate).getTime() - new Date(a.transactionDate).getTime());
+      }
+    }
     const list: Transaction[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.TRANSACTIONS) || '[]');
     return list.sort((a, b) => new Date(b.transactionDate).getTime() - new Date(a.transactionDate).getTime());
   },
   
-  saveTransaction: (trans: Omit<Transaction, 'id' | 'farmId' | 'createdAt'>): Transaction => {
-    const list = db.getTransactions();
-    const activeFarm = db.getFarm();
+  saveTransaction: async (trans: Omit<Transaction, 'id' | 'farmId' | 'createdAt'>): Promise<Transaction> => {
+    const activeFarm = await db.getFarm();
+    const id = `trans-${Date.now()}`;
     
+    const dbTrans = {
+      id,
+      farm_id: activeFarm.id,
+      type: trans.type,
+      category: trans.category,
+      amount: trans.amount,
+      transaction_date: trans.transactionDate,
+      payment_method: trans.paymentMethod,
+      receipt_url: trans.receiptUrl || null,
+      notes: trans.notes || null,
+      recorded_by: trans.recordedBy
+    };
+
+    if (isLiveDb && supabase) {
+      await supabase.from('transactions').insert([dbTrans]);
+      const list = await db.getTransactions();
+      return list.find(t => t.id === id) as Transaction;
+    }
+
+    const list = await db.getTransactions();
     const newTrans: Transaction = {
       ...trans,
-      id: `trans-${Date.now()}`,
+      id,
       farmId: activeFarm.id,
       createdAt: new Date().toISOString(),
     };
@@ -291,8 +537,12 @@ export const db = {
     return newTrans;
   },
   
-  deleteTransaction: (id: string): void => {
-    const list = db.getTransactions();
+  deleteTransaction: async (id: string): Promise<void> => {
+    if (isLiveDb && supabase) {
+      await supabase.from('transactions').delete().eq('id', id);
+      return;
+    }
+    const list = await db.getTransactions();
     const updated = list.filter(t => t.id !== id);
     localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(updated));
   }

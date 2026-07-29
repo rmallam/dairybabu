@@ -17,7 +17,7 @@ import {
   LogOut
 } from 'lucide-react';
 import { db } from './utils/supabaseClient';
-import type { Cattle, MilkLog, HealthLog, Transaction, Profile } from './types';
+import type { Farm, Cattle, MilkLog, HealthLog, Transaction, Profile } from './types';
 
 function App() {
   // Theme State
@@ -36,11 +36,11 @@ function App() {
   });
 
   // Farm State
-  const [farm, setFarm] = useState(db.getFarm());
+  const [farm, setFarm] = useState<Farm>({ id: '', name: 'Loading...', location: '', createdAt: '' });
 
   // App Role / User State
-  const [activeProfile, setActiveProfile] = useState<Profile>(db.getActiveProfile());
-  const [profiles, setProfiles] = useState<Profile[]>(db.getProfiles());
+  const [activeProfile, setActiveProfile] = useState<Profile>({ id: '', farmId: '', role: 'owner', fullName: 'Loading...', phoneNumber: '', createdAt: '' });
+  const [profiles, setProfiles] = useState<Profile[]>([]);
 
   // Database Data States
   const [cattle, setCattle] = useState<Cattle[]>([]);
@@ -112,14 +112,32 @@ function App() {
   });
 
   // Sync state from database
-  const refreshData = () => {
-    setCattle(db.getCattle());
-    setMilkLogs(db.getMilkLogs());
-    setHealthLogs(db.getHealthLogs());
-    setTransactions(db.getTransactions());
-    setProfiles(db.getProfiles());
-    setFarm(db.getFarm());
-    setActiveProfile(db.getActiveProfile());
+  const refreshData = async () => {
+    try {
+      const [c, m, h, t, p, f, active] = await Promise.all([
+        db.getCattle(),
+        db.getMilkLogs(),
+        db.getHealthLogs(),
+        db.getTransactions(),
+        db.getProfiles(),
+        db.getFarm(),
+        db.getActiveProfile()
+      ]);
+      setCattle(c);
+      setMilkLogs(m);
+      setHealthLogs(h);
+      setTransactions(t);
+      setProfiles(p);
+      setFarm(f);
+      if (active && active.id) {
+        setActiveProfile(active);
+      } else if (p.length > 0) {
+        setActiveProfile(p[0]);
+        await db.setActiveProfile(p[0]);
+      }
+    } catch (err) {
+      console.error("Database initialization failed:", err);
+    }
   };
 
   useEffect(() => {
@@ -155,11 +173,11 @@ function App() {
     setIsLoggedIn(false);
   };
 
-  const handleRegisterFarmSubmit = (e: React.FormEvent) => {
+  const handleRegisterFarmSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!registerForm.farmName || !registerForm.ownerName) return;
 
-    const result = db.createFarm(
+    const result = await db.createFarm(
       registerForm.farmName,
       registerForm.location,
       registerForm.ownerName
@@ -170,16 +188,18 @@ function App() {
     setIsLoggedIn(true);
     setShowRegisterFarm(false);
     setRegisterForm({ ownerName: '', farmName: '', location: '' });
-    refreshData();
+    await refreshData();
   };
 
-  const handleResetToDemo = () => {
+  const handleResetToDemo = async () => {
     if (confirm('Are you sure you want to reset and reload the demo Khammam Farm data (Ganga, Gauri, Dodla Sales, etc.)? Any custom farm data will be cleared.')) {
-      db.resetToDemo();
-      setFarm(db.getFarm());
-      setActiveProfile(db.getActiveProfile());
+      await db.resetToDemo();
+      const f = await db.getFarm();
+      const active = await db.getActiveProfile();
+      setFarm(f);
+      setActiveProfile(active);
       setIsLoggedIn(false);
-      refreshData();
+      await refreshData();
     }
   };
 
