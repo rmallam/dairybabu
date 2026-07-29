@@ -1086,6 +1086,13 @@ function App() {
                       alert('Farm Profile & Staff Credentials updated successfully!');
                     }
                   }}>
+                    <div className="form-group" style={{ textAlign: 'left', background: 'var(--card-hover)', padding: '0.75rem', borderRadius: '4px', marginBottom: '1rem', border: '1px solid var(--border)' }}>
+                      <label style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--primary)' }}>Farm Access Code (Share with Staff)</label>
+                      <code style={{ fontSize: '0.95rem', fontWeight: '700', display: 'block', marginTop: '0.2rem', wordBreak: 'break-all', color: 'var(--text)' }}>
+                        {farm.id}
+                      </code>
+                    </div>
+
                     <div className="form-group" style={{ textAlign: 'left' }}>
                       <label style={{ fontSize: '0.75rem' }}>Farm Name</label>
                       <input 
