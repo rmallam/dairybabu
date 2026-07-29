@@ -19,6 +19,13 @@ import {
 import { db } from './utils/supabaseClient';
 import type { Farm, Cattle, MilkLog, HealthLog, Transaction, Profile } from './types';
 
+const getGreeting = () => {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good Morning';
+  if (hour < 17) return 'Good Afternoon';
+  return 'Good Evening';
+};
+
 const SECRET_QUESTIONS = [
   "What is your mother's maiden name?",
   "What was the name of your first pet?",
@@ -975,9 +982,6 @@ function App() {
               <span className="role-badge" style={{ background: 'var(--primary-glow)', color: 'var(--primary)', border: '1px solid rgba(46, 125, 50, 0.2)', fontSize: '0.7rem' }}>
                 🏠 {farm.name}
               </span>
-              <span className={`role-badge ${activeProfile.role}`} style={{ fontSize: '0.7rem' }}>
-                {activeProfile.role === 'owner' ? 'Owner Portal' : 'Manager App'}
-              </span>
             </div>
           </div>
         </div>
@@ -1049,8 +1053,8 @@ function App() {
             {/* Greetings & Roles */}
             {activeProfile.role === 'manager' ? (
               <div style={{ marginBottom: '2rem' }}>
-                <h2 style={{ fontSize: '1.8rem', color: 'var(--text)' }}>నమస్కారం, {activeProfile.fullName.split(' ')[0]}! 👋</h2>
-                <p style={{ color: 'var(--text-muted)' }}>Quickly log daily actions. All updates are sent to the owner in real-time.</p>
+                <h2 style={{ fontSize: '1.8rem', color: 'var(--text)' }}>{getGreeting()}, {activeProfile.fullName.split(' ')[0]}! 👋</h2>
+                <p style={{ color: 'var(--text-muted)' }}>A companion to track your dairy activities in real time.</p>
               </div>
             ) : (
               <div style={{ marginBottom: '2rem' }}>
