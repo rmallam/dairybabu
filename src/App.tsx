@@ -36,7 +36,7 @@ function App() {
   });
 
   // Active Farm Code ID (SaaS Multi-Tenancy Gateway)
-  const [activeFarmId, setActiveFarmId] = useState<string | null>(localStorage.getItem('dairybabu_active_farm_id'));
+  const [activeFarmId, setActiveFarmId] = useState<string | null>(localStorage.getItem('ourdairy_active_farm_id'));
   const [farmCodeInput, setFarmCodeInput] = useState('');
   const [farmCodeError, setFarmCodeError] = useState('');
   
@@ -133,7 +133,7 @@ function App() {
       if (!f) {
         // Active farm ID not found, clear settings
         setActiveFarmId(null);
-        localStorage.removeItem('dairybabu_active_farm_id');
+        localStorage.removeItem('ourdairy_active_farm_id');
         return;
       }
       setFarm(f);
@@ -203,7 +203,7 @@ function App() {
     const code = farmCodeInput.trim();
     const f = await db.getFarmById(code);
     if (f) {
-      localStorage.setItem('dairybabu_active_farm_id', f.id);
+      localStorage.setItem('ourdairy_active_farm_id', f.id);
       setActiveFarmId(f.id);
       setFarmCodeInput('');
       setFarmCodeError('');
@@ -213,7 +213,7 @@ function App() {
   };
 
   const handleExitFarmPortal = () => {
-    localStorage.removeItem('dairybabu_active_farm_id');
+    localStorage.removeItem('ourdairy_active_farm_id');
     setActiveFarmId(null);
     setPinInput('');
     setLoginError('');
@@ -240,7 +240,7 @@ function App() {
       registerForm.ownerName
     );
 
-    localStorage.setItem('dairybabu_active_farm_id', result.farm.id);
+    localStorage.setItem('ourdairy_active_farm_id', result.farm.id);
     setActiveFarmId(result.farm.id);
     setFarm(result.farm);
     setActiveProfile(result.profiles[0]); // Logs in as new Owner
@@ -592,7 +592,7 @@ function App() {
                         key={r.id} 
                         style={{ padding: '0.75rem', background: 'var(--card-hover)', border: '1px solid var(--border)', borderRadius: '4px', cursor: 'pointer', textAlign: 'left' }}
                         onClick={() => {
-                          localStorage.setItem('dairybabu_active_farm_id', r.id);
+                          localStorage.setItem('ourdairy_active_farm_id', r.id);
                           setActiveFarmId(r.id);
                           setShowFarmFinder(false);
                           setFarmFinderSearch('');
@@ -625,7 +625,7 @@ function App() {
               </div>
             ) : (
               <div>
-                <h2 style={{ fontSize: '1.8rem', marginBottom: '0.25rem', fontFamily: 'var(--font-title)' }}>DairyBabu 🐄</h2>
+                <h2 style={{ fontSize: '1.8rem', marginBottom: '0.25rem', fontFamily: 'var(--font-title)' }}>OurDairy 🐄</h2>
                 <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1.5rem' }}>Enter your Farm Code to access your ledger.</p>
 
                 <form onSubmit={handleEnterFarmPortal} style={{ textAlign: 'left', marginTop: '1.5rem' }}>
@@ -685,7 +685,7 @@ function App() {
             )
           ) : (
             <div>
-              <h2 style={{ fontSize: '1.8rem', marginBottom: '0.25rem', fontFamily: 'var(--font-title)' }}>DairyBabu 🐄</h2>
+              <h2 style={{ fontSize: '1.8rem', marginBottom: '0.25rem', fontFamily: 'var(--font-title)' }}>OurDairy 🐄</h2>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Secure Portal for <strong>{farm.name}</strong></p>
 
               <form onSubmit={handleLogin} style={{ marginTop: '2rem' }}>
@@ -771,7 +771,7 @@ function App() {
         <div className="logo-container">
           <div className="logo-icon">🐄</div>
           <div>
-            <h1 className="logo-text">DairyBabu</h1>
+            <h1 className="logo-text">OurDairy</h1>
             <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.25rem' }}>
               <span className="role-badge" style={{ background: 'var(--primary-glow)', color: 'var(--primary)', border: '1px solid rgba(46, 125, 50, 0.2)', fontSize: '0.7rem' }}>
                 🏠 {farm.name}

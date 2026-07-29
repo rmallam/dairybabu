@@ -10,13 +10,13 @@ export const isLiveDb = !!(supabaseUrl && supabaseAnonKey);
 export const supabase = isLiveDb ? createClient(supabaseUrl, supabaseAnonKey) : null;
 
 const STORAGE_KEYS = {
-  FARM: 'dairybabu_farm',
-  PROFILES: 'dairybabu_profiles',
-  CATTLE: 'dairybabu_cattle',
-  MILK_LOGS: 'dairybabu_milk_logs',
-  HEALTH_LOGS: 'dairybabu_health_logs',
-  TRANSACTIONS: 'dairybabu_transactions',
-  ACTIVE_PROFILE: 'dairybabu_active_profile',
+  FARM: 'ourdairy_farm',
+  PROFILES: 'ourdairy_profiles',
+  CATTLE: 'ourdairy_cattle',
+  MILK_LOGS: 'ourdairy_milk_logs',
+  HEALTH_LOGS: 'ourdairy_health_logs',
+  TRANSACTIONS: 'ourdairy_transactions',
+  ACTIVE_PROFILE: 'ourdairy_active_profile',
 };
 
 // Initialize local storage fallback
