@@ -145,14 +145,15 @@ function App() {
   });
 
   // Sync state from database (Multi-Tenant Sandboxed)
-  const refreshData = async () => {
+  const refreshData = async (overrideFarmId?: string | null) => {
     try {
-      if (!activeFarmId) {
+      const targetFarmId = overrideFarmId !== undefined ? overrideFarmId : activeFarmId;
+      if (!targetFarmId) {
         setFarm({ id: '', name: 'Select Farm', location: '', createdAt: '' });
         return;
       }
       
-      const f = await db.getFarmById(activeFarmId);
+      const f = await db.getFarmById(targetFarmId);
       if (!f) {
         // Active farm ID not found, clear settings
         setActiveFarmId(null);
@@ -230,6 +231,7 @@ function App() {
       setActiveFarmId(f.id);
       setFarmCodeInput('');
       setFarmCodeError('');
+      await refreshData(f.id);
     } else {
       setFarmCodeError('Invalid Access Code. Please check the spelling or register a new farm.');
     }
@@ -753,12 +755,13 @@ function App() {
                       <div 
                         key={r.id} 
                         style={{ padding: '0.75rem', background: 'var(--card-hover)', border: '1px solid var(--border)', borderRadius: '4px', cursor: 'pointer', textAlign: 'left' }}
-                        onClick={() => {
+                        onClick={async () => {
                           localStorage.setItem('ourdairy_active_farm_id', r.id);
                           setActiveFarmId(r.id);
                           setShowFarmFinder(false);
                           setFarmFinderSearch('');
                           setFarmFinderResults([]);
+                          await refreshData(r.id);
                         }}
                       >
                         <p style={{ fontWeight: '700', fontSize: '0.9rem', color: 'var(--text)' }}>🏠 {r.name}</p>
@@ -1410,19 +1413,19 @@ function App() {
                   <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
                     Configure the tenant farm details displayed in the app header and login screens.
                   </p>
-                  <form onSubmit={(e) => {
+                  <form onSubmit={async (e) => {
                     e.preventDefault();
-                    const nameInput = (e.currentTarget.elements.namedItem('farm-name-edit') as HTMLInputElement).value;
-                    const locInput = (e.currentTarget.elements.namedItem('farm-loc-edit') as HTMLInputElement).value;
-                    const oName = (e.currentTarget.elements.namedItem('owner-name-edit') as HTMLInputElement).value;
-                    const oPin = (e.currentTarget.elements.namedItem('owner-pin-edit') as HTMLInputElement).value;
-                    const mName = (e.currentTarget.elements.namedItem('manager-name-edit') as HTMLInputElement).value;
-                    const mPin = (e.currentTarget.elements.namedItem('manager-pin-edit') as HTMLInputElement).value;
+                    const nameInput = (e.currentTarget.elements.namedItem('farm-name-edit') as HTMLInputElement).value.trim();
+                    const locInput = (e.currentTarget.elements.namedItem('farm-loc-edit') as HTMLInputElement).value.trim();
+                    const oName = (e.currentTarget.elements.namedItem('owner-name-edit') as HTMLInputElement).value.trim();
+                    const oPin = (e.currentTarget.elements.namedItem('owner-pin-edit') as HTMLInputElement).value.trim();
+                    const mName = (e.currentTarget.elements.namedItem('manager-name-edit') as HTMLInputElement).value.trim();
+                    const mPin = (e.currentTarget.elements.namedItem('manager-pin-edit') as HTMLInputElement).value.trim();
                     
-                    if (nameInput) {
-                      db.updateFarm(nameInput, locInput);
-                      db.updateProfiles(oName, oPin, mName, mPin);
-                      refreshData();
+                    if (nameInput && nameInput !== 'Select Farm' && nameInput !== 'Loading...') {
+                      await db.updateFarm(nameInput, locInput);
+                      await db.updateProfiles(oName, oPin, mName, mPin);
+                      await refreshData(farm.id);
                       alert('Farm Profile & Staff Credentials updated successfully!');
                     }
                   }}>
