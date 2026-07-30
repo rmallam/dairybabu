@@ -22,6 +22,7 @@ import { db } from './utils/supabaseClient';
 import type { Farm, Profile, Cattle, MilkLog, HealthLog, Transaction, BreedingLog, InventoryItem } from './types';
 import { useTranslation } from "react-i18next";
 import i18n from './i18n';
+import { injectDemoData } from './utils/demoData';
 
 const getGreeting = () => {
   const hour = new Date().getHours();
@@ -1042,7 +1043,21 @@ function App() {
                   >
                     {t('_switch_farm')}</button>
                 </div>
-
+                
+                <div style={{ marginTop: '2rem', paddingTop: '1rem', borderTop: '1px solid var(--border)', textAlign: 'center' }}>
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      injectDemoData();
+                      window.location.reload();
+                    }}
+                    className="btn" 
+                    style={{ width: '100%', padding: '0.6rem', fontSize: '0.85rem', background: 'var(--primary-glow)', color: 'var(--primary)', border: '1px solid rgba(46, 125, 50, 0.2)' }}
+                  >
+                    🚀 Play Store Review / Demo Login
+                  </button>
+                  <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>Click this to instantly load a fully populated test farm.</p>
+                </div>
 
               </form>
             </div>
@@ -1105,11 +1120,29 @@ function App() {
             </span>
           </div>
 
+          {/* Language toggle */}
+          <select 
+            className="form-control" 
+            style={{ width: 'auto', padding: '0.2rem 0.5rem', borderRadius: '50px', fontSize: '0.8rem', backgroundColor: 'var(--bg-card)', height: '38px' }}
+            value={i18n.language}
+            onChange={(e) => {
+              i18n.changeLanguage(e.target.value);
+              localStorage.setItem('dairy_app_language', e.target.value);
+            }}
+          >
+            <option value="en">EN</option>
+            <option value="hi">HI</option>
+            <option value="te">TE</option>
+            <option value="mr">MR</option>
+            <option value="ta">TA</option>
+            <option value="kn">KN</option>
+          </select>
+
           {/* Light/Dark Mode toggle */}
           <button 
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
             className="btn btn-secondary" 
-            style={{ borderRadius: '50px', padding: '0.5rem', width: '38px', height: '38px' }}
+            style={{ borderRadius: '50px', padding: '0.5rem', width: '38px', height: '38px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           >
             {theme === 'dark' ? '☀️' : '🌙'}
           </button>
