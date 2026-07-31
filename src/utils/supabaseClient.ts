@@ -437,9 +437,9 @@ export const db = {
     return list.sort((a, b) => new Date(b.logDate).getTime() - new Date(a.logDate).getTime());
   },
   
-  saveMilkLog: async (log: Omit<MilkLog, 'id' | 'farmId' | 'createdAt'>): Promise<MilkLog> => {
+  saveMilkLog: async (log: Omit<MilkLog, 'id' | 'farmId' | 'createdAt'> & { id?: string }): Promise<MilkLog> => {
     const activeFarm = await db.getFarm();
-    const id = `milk-${Date.now()}`;
+    const id = log.id || `milk-${Date.now()}`;
     
     const dbLog = {
       id,
@@ -456,7 +456,11 @@ export const db = {
     };
 
     if (isLiveDb && supabase) {
-      await supabase.from('milk_logs').insert([dbLog]);
+      if (log.id) {
+        await supabase.from('milk_logs').update(dbLog).eq('id', log.id);
+      } else {
+        await supabase.from('milk_logs').insert([dbLog]);
+      }
       const list = await db.getMilkLogs();
       return list.find(m => m.id === id) as MilkLog;
     }
@@ -469,7 +473,15 @@ export const db = {
       createdAt: new Date().toISOString(),
     };
     
-    list.push(newLog);
+    if (log.id) {
+      const idx = list.findIndex(m => m.id === log.id);
+      if (idx !== -1) {
+        list[idx] = { ...list[idx], ...log };
+      }
+    } else {
+      list.push(newLog);
+    }
+    
     localStorage.setItem(STORAGE_KEYS.MILK_LOGS, JSON.stringify(list));
     return newLog;
   },
@@ -594,6 +606,16 @@ export const db = {
     }
   },
 
+  deleteHealthLog: async (id: string): Promise<void> => {
+    if (isLiveDb && supabase) {
+      await supabase.from('health_logs').delete().eq('id', id);
+      return;
+    }
+    const list = await db.getHealthLogs();
+    const filtered = list.filter(l => l.id !== id);
+    localStorage.setItem(STORAGE_KEYS.HEALTH_LOGS, JSON.stringify(filtered));
+  },
+
   // Transaction APIs
   getTransactions: async (): Promise<Transaction[]> => {
     if (isLiveDb && supabase) {
@@ -620,9 +642,9 @@ export const db = {
     return list.sort((a, b) => new Date(b.transactionDate).getTime() - new Date(a.transactionDate).getTime());
   },
   
-  saveTransaction: async (trans: Omit<Transaction, 'id' | 'farmId' | 'createdAt'>): Promise<Transaction> => {
+  saveTransaction: async (trans: Omit<Transaction, 'id' | 'farmId' | 'createdAt'> & { id?: string }): Promise<Transaction> => {
     const activeFarm = await db.getFarm();
-    const id = `trans-${Date.now()}`;
+    const id = trans.id || `trans-${Date.now()}`;
     
     const dbTrans = {
       id,
@@ -638,7 +660,11 @@ export const db = {
     };
 
     if (isLiveDb && supabase) {
-      await supabase.from('transactions').insert([dbTrans]);
+      if (trans.id) {
+        await supabase.from('transactions').update(dbTrans).eq('id', trans.id);
+      } else {
+        await supabase.from('transactions').insert([dbTrans]);
+      }
       const list = await db.getTransactions();
       return list.find(t => t.id === id) as Transaction;
     }
@@ -651,7 +677,15 @@ export const db = {
       createdAt: new Date().toISOString(),
     };
     
-    list.push(newTrans);
+    if (trans.id) {
+      const idx = list.findIndex(t => t.id === trans.id);
+      if (idx !== -1) {
+        list[idx] = { ...list[idx], ...trans };
+      }
+    } else {
+      list.push(newTrans);
+    }
+    
     localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(list));
     return newTrans;
   },

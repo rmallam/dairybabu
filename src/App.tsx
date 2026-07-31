@@ -105,6 +105,9 @@ function App() {
   const [selectedCowProfileId, setSelectedCowProfileId] = useState<string | null>(null);
   const [txFilterCategory, setTxFilterCategory] = useState<string>('all');
   const [expandedTxId, setExpandedTxId] = useState<string | null>(null);
+  const [editingMilkLogId, setEditingMilkLogId] = useState<string | null>(null);
+  const [editingTxId, setEditingTxId] = useState<string | null>(null);
+  const [editingHealthLogId, setEditingHealthLogId] = useState<string | null>(null);
 
   // Modals visibility
   const [showAddCattleModal, setShowAddCattleModal] = useState(false);
@@ -440,6 +443,7 @@ function App() {
     }
 
     await db.saveMilkLog({
+      id: editingMilkLogId || undefined,
       cattleId: milkLogType === 'individual' ? milkLogForm.cattleId : undefined,
       cattleName: milkLogType === 'individual' ? selectedCow?.name : undefined,
       cattleTag: milkLogType === 'individual' ? selectedCow?.tagNumber : undefined,
@@ -452,6 +456,7 @@ function App() {
     });
 
     setShowLogMilkModal(false);
+    setEditingMilkLogId(null);
     setMilkLogForm({
       cattleId: '',
       logDate: new Date().toISOString().split('T')[0],
@@ -468,6 +473,7 @@ function App() {
     if (!txForm.amount) return;
 
     await db.saveTransaction({
+      id: editingTxId || undefined,
       type: txForm.type,
       category: txForm.category,
       amount: parseFloat(txForm.amount),
@@ -479,6 +485,7 @@ function App() {
     });
 
     setShowAddTxModal(false);
+    setEditingTxId(null);
     setTxForm({
       type: 'expense',
       category: 'Feed Purchase',
@@ -501,6 +508,7 @@ function App() {
     const costNum = healthForm.cost ? parseFloat(healthForm.cost) : 0;
 
     await db.saveHealthLog({
+      id: editingHealthLogId || undefined,
       cattleId: healthForm.cattleId,
       cattleName: selectedCow.name || 'Unnamed',
       cattleTag: selectedCow.tagNumber,
@@ -515,7 +523,7 @@ function App() {
     });
 
     // Record health cost in financials automatically
-    if (costNum > 0) {
+    if (costNum > 0 && !editingHealthLogId) { // Only auto-record expense on creation, not edit
       await db.saveTransaction({
         type: 'expense',
         category: 'Medicines',
@@ -528,6 +536,7 @@ function App() {
     }
 
     setShowAddHealthModal(false);
+    setEditingHealthLogId(null);
     setHealthForm({
       cattleId: '',
       treatmentType: 'vaccination',
@@ -1602,11 +1611,48 @@ function App() {
                         </p>
                       </div>
                     </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <span style={{ fontSize: '1.2rem', fontWeight: '700', color: 'var(--text)' }}>{log.quantityLiters}{t('l')}</span>
-                      {(log.fatPercentage || log.snfPercentage) && (
-                        <p style={{ fontSize: '0.75rem', color: 'var(--info)', marginTop: '0.2rem' }}>
-                          {t('fat')}{log.fatPercentage || '-'}{t('_bull_snf')}{log.snfPercentage || '-'}{t('key_27')}</p>
+                    <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' }}>
+                      <div>
+                        <span style={{ fontSize: '1.2rem', fontWeight: '700', color: 'var(--text)' }}>{log.quantityLiters}{t('l')}</span>
+                        {(log.fatPercentage || log.snfPercentage) && (
+                          <p style={{ fontSize: '0.75rem', color: 'var(--info)', margin: 0, marginTop: '0.2rem' }}>
+                            {t('fat')}{log.fatPercentage || '-'}{t('_bull_snf')}{log.snfPercentage || '-'}{t('key_27')}</p>
+                        )}
+                      </div>
+                      {(activeProfile.role === 'owner' || activeProfile.role === 'manager') && (
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          <button 
+                            className="btn btn-secondary" 
+                            style={{ padding: '0.2rem 0.4rem', fontSize: '0.7rem' }}
+                            onClick={() => {
+                              setEditingMilkLogId(log.id);
+                              setMilkLogType(log.cattleId ? 'individual' : 'bulk');
+                              setMilkLogForm({
+                                cattleId: log.cattleId || '',
+                                logDate: log.logDate,
+                                session: log.session,
+                                quantityLiters: log.quantityLiters.toString(),
+                                fatPercentage: log.fatPercentage?.toString() || '',
+                                snfPercentage: log.snfPercentage?.toString() || '',
+                              });
+                              setShowLogMilkModal(true);
+                            }}
+                          >
+                            <Edit size={12} /> Edit
+                          </button>
+                          <button 
+                            className="btn btn-secondary" 
+                            style={{ padding: '0.2rem 0.4rem', fontSize: '0.7rem', color: 'var(--danger)', borderColor: 'var(--danger)' }}
+                            onClick={async () => {
+                              if (confirm('Delete this milk log?')) {
+                                await db.deleteMilkLog(log.id);
+                                refreshData();
+                              }
+                            }}
+                          >
+                            <Trash size={12} />
+                          </button>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -1943,19 +1989,42 @@ function App() {
                                           <span style={{ color: 'var(--text-muted)' }}>{t('no_file')}</span>
                                         )}
                                       </div>
-                                      {activeProfile.role === 'owner' && (
-                                        <div style={{ marginTop: '1rem' }}>
+                                      {(activeProfile.role === 'owner' || activeProfile.role === 'manager') && (
+                                        <div style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem' }}>
                                           <button 
                                             className="btn btn-secondary" 
-                                            style={{ color: 'var(--danger)', borderColor: 'var(--danger)' }}
                                             onClick={(e) => {
                                               e.stopPropagation();
-                                              db.deleteTransaction(tx.id);
-                                              refreshData();
+                                              setEditingTxId(tx.id);
+                                              setTxForm({
+                                                type: tx.type,
+                                                category: tx.category,
+                                                amount: tx.amount.toString(),
+                                                transactionDate: tx.transactionDate,
+                                                paymentMethod: tx.paymentMethod || 'cash',
+                                                notes: tx.notes || '',
+                                                receiptPhoto: tx.receiptUrl || null,
+                                              });
+                                              setShowAddTxModal(true);
                                             }}
                                           >
-                                            <Trash size={14} style={{ marginRight: '0.25rem' }} /> Delete Transaction
+                                            <Edit size={14} style={{ marginRight: '0.25rem' }} /> Edit
                                           </button>
+                                          {activeProfile.role === 'owner' && (
+                                            <button 
+                                              className="btn btn-secondary" 
+                                              style={{ color: 'var(--danger)', borderColor: 'var(--danger)' }}
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                if (confirm('Delete this transaction?')) {
+                                                  db.deleteTransaction(tx.id);
+                                                  refreshData();
+                                                }
+                                              }}
+                                            >
+                                              <Trash size={14} style={{ marginRight: '0.25rem' }} /> Delete
+                                            </button>
+                                          )}
                                         </div>
                                       )}
                                     </div>
@@ -2010,6 +2079,7 @@ function App() {
                     <th>{t('vet_fee')}</th>
                     <th>{t('performed_by')}</th>
                     <th>{t('status')}</th>
+                    {(activeProfile.role === 'owner' || activeProfile.role === 'manager') && <th>Action</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -2042,6 +2112,46 @@ function App() {
                           {log.status.toUpperCase()}
                         </span>
                       </td>
+                      {(activeProfile.role === 'owner' || activeProfile.role === 'manager') && (
+                        <td>
+                          <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <button 
+                              className="btn btn-secondary" 
+                              style={{ padding: '0.2rem 0.4rem' }}
+                              onClick={() => {
+                                setEditingHealthLogId(log.id);
+                                setHealthForm({
+                                  cattleId: log.cattleId,
+                                  treatmentType: log.treatmentType,
+                                  title: log.title,
+                                  administeredDate: log.administeredDate || '',
+                                  nextDueDate: log.nextDueDate || '',
+                                  cost: log.cost ? log.cost.toString() : '',
+                                  performedBy: log.performedBy || '',
+                                  notes: log.notes || '',
+                                });
+                                setShowAddHealthModal(true);
+                              }}
+                            >
+                              <Edit size={14} />
+                            </button>
+                            {activeProfile.role === 'owner' && (
+                              <button 
+                                className="btn btn-secondary" 
+                                style={{ padding: '0.2rem 0.4rem', color: 'var(--danger)', borderColor: 'transparent' }}
+                                onClick={async () => {
+                                  if (confirm('Delete this health log?')) {
+                                    await db.deleteHealthLog(log.id);
+                                    refreshData();
+                                  }
+                                }}
+                              >
+                                <Trash size={14} />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
