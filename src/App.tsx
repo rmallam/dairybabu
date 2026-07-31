@@ -16,7 +16,9 @@ import {
   Lock,
   LogOut,
   Droplet,
-  Stethoscope
+  Stethoscope,
+  ChevronRight,
+  ChevronDown
 } from 'lucide-react';
 import { db } from './utils/supabaseClient';
 import type { Farm, Profile, Cattle, MilkLog, HealthLog, Transaction, BreedingLog, InventoryItem } from './types';
@@ -102,6 +104,7 @@ function App() {
   // Analytics
   const [selectedCowProfileId, setSelectedCowProfileId] = useState<string | null>(null);
   const [txFilterCategory, setTxFilterCategory] = useState<string>('all');
+  const [expandedTxId, setExpandedTxId] = useState<string | null>(null);
 
   // Modals visibility
   const [showAddCattleModal, setShowAddCattleModal] = useState(false);
@@ -1871,75 +1874,108 @@ function App() {
                 <Plus size={16} /> {t('record_transaction')}</button>
             </div>
 
-            <div className="data-table-container">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>{t('date')}</th>
-                    <th>{t('type')}</th>
-                    <th>{t('category')}</th>
-                    <th>{t('notes_info')}</th>
-                    <th>{t('receipt_file')}</th>
-                    <th>{t('logged_by_31')}</th>
-                    <th>{t('amount')}</th>
-                    {activeProfile.role === 'owner' && <th>{t('action')}</th>}
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredTransactions.map(tx => (
-                    <tr key={tx.id}>
-                      <td>{tx.transactionDate}</td>
-                      <td>
-                        <span style={{ 
-                          padding: '0.2rem 0.5rem', 
-                          borderRadius: '4px', 
-                          fontSize: '0.75rem', 
-                          fontWeight: '700',
-                          background: tx.type === 'income' ? 'var(--success-glow)' : 'var(--danger-glow)',
-                          color: tx.type === 'income' ? 'var(--success)' : 'var(--danger)'
-                        }}>
-                          {tx.type.toUpperCase()}
-                        </span>
-                      </td>
-                      <td style={{ fontWeight: '700' }}>{tx.category}</td>
-                      <td style={{ color: 'var(--text-muted)', maxWidth: '300px' }}>{tx.notes || '—'}</td>
-                      <td>
-                        {tx.receiptUrl ? (
-                          <button 
-                            className="role-badge" 
-                            style={{ background: 'var(--primary-glow)', color: 'var(--primary)', cursor: 'pointer', border: 'none' }}
-                            onClick={() => setReceiptPreviewUrl(tx.receiptUrl || null)}
-                          >
-                            {t('show_receipt_')}</button>
-                        ) : (
-                          <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{t('no_file')}</span>
-                        )}
-                      </td>
-                      <td>{tx.recordedBy}</td>
-                      <td style={{ 
-                        fontWeight: '700', 
-                        color: tx.type === 'income' ? 'var(--success)' : 'var(--danger)' 
-                      }}>
-                        {tx.type === 'income' ? '+' : '-'}{t('key_32')}{tx.amount}
-                      </td>
-                      {activeProfile.role === 'owner' && (
-                        <td>
-                          <button 
-                            className="btn btn-secondary" 
-                            style={{ padding: '0.25rem 0.5rem', borderColor: 'transparent' }}
-                            onClick={() => {
-                              db.deleteTransaction(tx.id);
-                              refreshData();
-                            }}
-                          >
-                            <Trash size={14} />
-                          </button>
-                        </td>
-                      )}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="ledger-list-container">
+              {(() => {
+                const txByDate = filteredTransactions.reduce((acc, tx) => {
+                  const date = tx.transactionDate;
+                  if (!acc[date]) acc[date] = [];
+                  acc[date].push(tx);
+                  return acc;
+                }, {} as Record<string, typeof filteredTransactions>);
+
+                const sortedDates = Object.keys(txByDate).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+
+                return (
+                  <>
+                    {sortedDates.map(dateStr => {
+                      const dayTxs = txByDate[dateStr];
+                      const dayTotal = dayTxs.reduce((sum, tx) => sum + (tx.type === 'income' ? tx.amount : -tx.amount), 0);
+                      
+                      const dateObj = new Date(dateStr);
+                      const formattedDate = dateObj.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+                      return (
+                        <div key={dateStr} style={{ marginBottom: '1rem' }}>
+                          <div style={{ padding: '0.5rem 1rem', backgroundColor: 'var(--card-hover)', color: 'var(--text-muted)', fontSize: '0.85rem', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between' }}>
+                            <span>{formattedDate}</span>
+                            <span style={{ color: dayTotal >= 0 ? 'var(--success)' : 'var(--danger)' }}>
+                              {dayTotal >= 0 ? '+' : '-'}{t('key_32')}{Math.abs(dayTotal).toFixed(2)}
+                            </span>
+                          </div>
+                          <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '0 0 8px 8px', overflow: 'hidden' }}>
+                            {dayTxs.map(tx => {
+                              const isExpanded = expandedTxId === tx.id;
+                              return (
+                                <div key={tx.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                                  <div 
+                                    style={{ padding: '1rem', display: 'flex', alignItems: 'center', cursor: 'pointer', gap: '1rem' }}
+                                    onClick={() => setExpandedTxId(isExpanded ? null : tx.id)}
+                                  >
+                                    <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: tx.type === 'income' ? 'var(--success-glow)' : 'var(--danger-glow)', color: tx.type === 'income' ? 'var(--success)' : 'var(--danger)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                      {tx.type === 'income' ? <TrendingUp size={20} /> : <DollarSign size={20} />}
+                                    </div>
+                                    <div style={{ flex: 1 }}>
+                                      <div style={{ fontWeight: 'bold', color: 'var(--text)' }}>{tx.category}</div>
+                                      <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{tx.type === 'income' ? 'Income' : 'Expense'}</div>
+                                    </div>
+                                    <div style={{ fontWeight: 'bold', color: tx.type === 'income' ? 'var(--success)' : 'var(--danger)' }}>
+                                      {tx.type === 'income' ? '+' : '-'}{t('key_32')}{tx.amount}
+                                    </div>
+                                    <div style={{ color: 'var(--text-muted)' }}>
+                                      {isExpanded ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
+                                    </div>
+                                  </div>
+                                  
+                                  {isExpanded && (
+                                    <div style={{ padding: '1rem', backgroundColor: 'var(--bg-app)', borderTop: '1px solid var(--border)', fontSize: '0.9rem', color: 'var(--text)' }}>
+                                      <div style={{ marginBottom: '0.5rem' }}><strong>{t('notes_info')}:</strong> {tx.notes || '—'}</div>
+                                      <div style={{ marginBottom: '0.5rem' }}><strong>{t('logged_by_31')}:</strong> {tx.recordedBy}</div>
+                                      <div style={{ marginBottom: '0.5rem' }}>
+                                        <strong>{t('receipt_file')}:</strong>{' '}
+                                        {tx.receiptUrl ? (
+                                          <span 
+                                            style={{ color: 'var(--primary)', cursor: 'pointer', textDecoration: 'underline' }}
+                                            onClick={(e) => { e.stopPropagation(); setReceiptPreviewUrl(tx.receiptUrl || null); }}
+                                          >
+                                            {t('show_receipt_')}
+                                          </span>
+                                        ) : (
+                                          <span style={{ color: 'var(--text-muted)' }}>{t('no_file')}</span>
+                                        )}
+                                      </div>
+                                      {activeProfile.role === 'owner' && (
+                                        <div style={{ marginTop: '1rem' }}>
+                                          <button 
+                                            className="btn btn-secondary" 
+                                            style={{ color: 'var(--danger)', borderColor: 'var(--danger)' }}
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              db.deleteTransaction(tx.id);
+                                              refreshData();
+                                            }}
+                                          >
+                                            <Trash size={14} style={{ marginRight: '0.25rem' }} /> Delete Transaction
+                                          </button>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                    
+                    {filteredTransactions.length === 0 && (
+                      <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                        No transactions found.
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           </div>
         )}
