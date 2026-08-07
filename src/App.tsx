@@ -1665,8 +1665,8 @@ function App() {
                             style={{ padding: '0.2rem 0.4rem', fontSize: '0.7rem', color: 'var(--danger)', borderColor: 'var(--danger)' }}
                             onClick={async () => {
                               if (confirm('Delete this milk log?')) {
-                                await db.deleteMilkLog(log.id);
-                                refreshData();
+                                setMilkLogs(prev => prev.filter(l => l.id !== log.id));
+                                db.deleteMilkLog(log.id).then(() => refreshData());
                               }
                             }}
                           >
@@ -1820,8 +1820,8 @@ function App() {
                               onClick={(e) => {
                                 e.stopPropagation();
                                 if (confirm(t('delete_cow_profile_p'))) {
-                                  db.deleteCattle(cow.id);
-                                  refreshData();
+                                  setCattle(prev => prev.filter(c => c.id !== cow.id));
+                                  db.deleteCattle(cow.id).then(() => refreshData());
                                 }
                               }}
                             >
@@ -2037,8 +2037,8 @@ function App() {
                                               onClick={(e) => {
                                                 e.stopPropagation();
                                                 if (confirm('Delete this transaction?')) {
-                                                  db.deleteTransaction(tx.id);
-                                                  refreshData();
+                                                  setTransactions(prev => prev.filter(t => t.id !== tx.id));
+                                                  db.deleteTransaction(tx.id).then(() => refreshData());
                                                 }
                                               }}
                                             >
@@ -2161,8 +2161,8 @@ function App() {
                                 style={{ padding: '0.2rem 0.4rem', color: 'var(--danger)', borderColor: 'transparent' }}
                                 onClick={async () => {
                                   if (confirm('Delete this health log?')) {
-                                    await db.deleteHealthLog(log.id);
-                                    refreshData();
+                                    setHealthLogs(prev => prev.filter(h => h.id !== log.id));
+                                    db.deleteHealthLog(log.id).then(() => refreshData());
                                   }
                                 }}
                               >
@@ -2976,8 +2976,8 @@ function App() {
                             </div>
                             <button className="btn btn-secondary" style={{ padding: '0.25rem', color: 'var(--danger)' }} onClick={async () => {
                               if (confirm(t('delete_this_event'))) {
-                                await db.deleteBreedingLog(log.id);
-                                refreshData();
+                                setBreedingLogs(prev => prev.filter(b => b.id !== log.id));
+                                db.deleteBreedingLog(log.id).then(() => refreshData());
                               }
                             }}>
                               <Trash size={14} />
