@@ -92,6 +92,7 @@ function App() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [breedingLogs, setBreedingLogs] = useState<BreedingLog[]>([]);
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
+  const [isDataLoading, setIsDataLoading] = useState(false);
 
   // Navigation tab state (consistent for both Owner and Manager)
   const [activeTab, setActiveTab] = useState<'dashboard' | 'cattle' | 'milk' | 'financials' | 'health'>('dashboard');
@@ -206,31 +207,44 @@ function App() {
       }
       setFarm(f);
 
-      const [c, m, h, t, p, active, bl, inv] = await Promise.all([
+      // BLOCKING: Load core entity data required for initial paint
+      const [c, p, active] = await Promise.all([
         db.getCattle(),
-        db.getMilkLogs(),
-        db.getHealthLogs(),
-        db.getTransactions(),
         db.getProfiles(),
-        db.getActiveProfile(),
-        db.getBreedingLogs(),
-        db.getInventoryItems()
+        db.getActiveProfile()
       ]);
       setCattle(c);
-      setMilkLogs(m);
-      setHealthLogs(h);
-      setTransactions(t);
       setProfiles(p);
-      setBreedingLogs(bl);
-      setInventoryItems(inv);
       if (active && active.id && active.farmId === activeFarmId) {
         setActiveProfile(active);
       } else if (p.length > 0) {
         setActiveProfile(p[0]);
         await db.setActiveProfile(p[0]);
       }
+
+      // NON-BLOCKING: Fetch heavy history logs in the background
+      setIsDataLoading(true);
+      Promise.all([
+        db.getMilkLogs(),
+        db.getHealthLogs(),
+        db.getTransactions(),
+        db.getBreedingLogs(),
+        db.getInventoryItems()
+      ]).then(([m, h, t, bl, inv]) => {
+        setMilkLogs(m);
+        setHealthLogs(h);
+        setTransactions(t);
+        setBreedingLogs(bl);
+        setInventoryItems(inv);
+      }).catch(err => {
+        console.error("Background data fetch failed:", err);
+      }).finally(() => {
+        setIsDataLoading(false);
+      });
+
     } catch (err) {
       console.error("Database initialization failed:", err);
+      setIsDataLoading(false);
     }
   };
 
@@ -1173,6 +1187,12 @@ function App() {
 
       {/* MAIN VIEW AREA */}
       <main className="main-content">
+        {isDataLoading && (
+          <div style={{ padding: '0.5rem', marginBottom: '1rem', background: '#dbeafe', color: '#1e40af', borderRadius: '8px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Activity size={16} style={{ marginRight: '0.5rem' }} className="spin-animation" /> 
+            {t('Syncing historical data...')}
+          </div>
+        )}
         
         {/* ========================================================
             TAB: DASHBOARD

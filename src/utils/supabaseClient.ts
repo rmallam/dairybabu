@@ -414,7 +414,7 @@ export const db = {
   getMilkLogs: async (): Promise<MilkLog[]> => {
     if (isLiveDb && supabase) {
       const farm = await db.getFarm();
-      const { data } = await supabase.from('milk_logs').select('*').eq('farm_id', farm.id);
+      const { data } = await supabase.from('milk_logs').select('*').eq('farm_id', farm.id).order('log_date', { ascending: false }).limit(500);
       if (data) {
         const mapped = data.map(l => ({
           id: l.id,
@@ -500,7 +500,7 @@ export const db = {
   getHealthLogs: async (): Promise<HealthLog[]> => {
     if (isLiveDb && supabase) {
       const farm = await db.getFarm();
-      const { data } = await supabase.from('health_logs').select('*').eq('farm_id', farm.id);
+      const { data } = await supabase.from('health_logs').select('*').eq('farm_id', farm.id).order('created_at', { ascending: false }).limit(200);
       if (data) {
         const mapped = data.map(h => ({
           id: h.id,
@@ -620,7 +620,7 @@ export const db = {
   getTransactions: async (): Promise<Transaction[]> => {
     if (isLiveDb && supabase) {
       const farm = await db.getFarm();
-      const { data } = await supabase.from('transactions').select('*').eq('farm_id', farm.id);
+      const { data } = await supabase.from('transactions').select('*').eq('farm_id', farm.id).order('transaction_date', { ascending: false }).limit(500);
       if (data) {
         const mapped = data.map(t => ({
           id: t.id,
@@ -704,7 +704,7 @@ export const db = {
   getBreedingLogs: async (): Promise<BreedingLog[]> => {
     if (isLiveDb && supabase) {
       const farm = await db.getFarm();
-      const { data } = await supabase.from('breeding_logs').select('*').eq('farm_id', farm.id);
+      const { data } = await supabase.from('breeding_logs').select('*').eq('farm_id', farm.id).order('event_date', { ascending: false }).limit(200);
       if (data) {
         return data.map(l => ({
           id: l.id,
